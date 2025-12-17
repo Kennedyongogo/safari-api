@@ -44,6 +44,7 @@ module.exports = (sequelize) => {
           "inquiry",
           "document",
           "testimony",
+          "review",
           "mission_category",
           "post",
           "member",
@@ -124,4 +125,3 @@ module.exports = (sequelize) => {
 
   return AuditTrail;
 };
-

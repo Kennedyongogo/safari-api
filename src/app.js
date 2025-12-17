@@ -19,7 +19,7 @@ const auditTrailRoutes = require("./routes/auditTrailRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
-const testimonyRoutes = require("./routes/testimonyRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 const missionCategoryRoutes = require("./routes/missionCategoryRoutes");
 const postRoutes = require("./routes/postRoutes");
 const memberRoutes = require("./routes/memberRoutes");
@@ -69,8 +69,8 @@ console.log("✅ /api/public-projects route registered (public)");
 app.get("/api/public-projects/:id", getPublicProjectById);
 console.log("✅ /api/public-projects/:id route registered (public)");
 
-app.use("/api/testimonies", testimonyRoutes);
-console.log("✅ /api/testimonies route registered");
+app.use("/api/reviews", reviewRoutes);
+console.log("✅ /api/reviews route registered");
 
 app.use("/api/admin-users", adminUserRoutes);
 console.log("✅ /api/admin-users route registered");

@@ -6,7 +6,7 @@ const Inquiry = require("./inquiry")(sequelize);
 const Project = require("./project")(sequelize);
 const Document = require("./document")(sequelize);
 const AuditTrail = require("./auditTrail")(sequelize);
-const Testimony = require("./testimony")(sequelize);
+const Review = require("./review")(sequelize);
 const MissionCategory = require("./missionCategory")(sequelize);
 const Post = require("./post")(sequelize);
 const Member = require("./member")(sequelize);
@@ -17,7 +17,7 @@ const models = {
   Project,
   Document,
   AuditTrail,
-  Testimony,
+  Review,
   MissionCategory,
   Post,
   Member,
@@ -30,12 +30,12 @@ const initializeModels = async () => {
 
     // Use alter: false to prevent schema conflicts in production
     console.log("📋 Syncing tables...");
-    await AdminUser.sync({ force: false, alter: false  });
+    await AdminUser.sync({ force: false, alter: false });
     await Inquiry.sync({ force: false, alter: false });
     await Project.sync({ force: false, alter: false });
     await Document.sync({ force: false, alter: false });
     await AuditTrail.sync({ force: false, alter: false });
-    await Testimony.sync({ force: false, alter: false });
+    await Review.sync({ force: false, alter: false });
     await MissionCategory.sync({ force: false, alter: false });
     await Post.sync({ force: false, alter: false });
     await Member.sync({ force: false, alter: false });

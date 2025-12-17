@@ -1,4 +1,4 @@
-const { Testimony } = require("../models");
+const { Review } = require("../models");
 const { Op } = require("sequelize");
 const {
   logCreate,
@@ -7,16 +7,18 @@ const {
   logStatusChange,
 } = require("../utils/auditLogger");
 
-// Create testimony
-const createTestimony = async (req, res) => {
+// Create review
+const createReview = async (req, res) => {
   try {
-    const { name, rating, description, status } = req.body;
+    const { name, email, phone, location, rating, comment, recommend, status } =
+      req.body;
 
     // Validate required fields
-    if (!name || !rating || !description) {
+    if (!name || !email || !rating || !comment) {
       return res.status(400).json({
         success: false,
-        message: "Please provide all required fields (name, rating, description)",
+        message:
+          "Please provide all required fields (name, email, rating, comment)",
       });
     }
 
@@ -28,41 +30,45 @@ const createTestimony = async (req, res) => {
       });
     }
 
-    // Create testimony
-    const testimony = await Testimony.create({
+    // Create review
+    const review = await Review.create({
       name,
+      email,
+      phone,
+      location,
       rating,
-      description,
+      comment,
+      recommend: recommend ?? false,
       status: status || "pending",
     });
 
     // Log audit trail
     await logCreate(
-      null, // No user ID for public testimonies
-      "testimony",
-      testimony.id,
-      { name, rating, status: testimony.status },
+      null, // No user ID for public reviews
+      "review",
+      review.id,
+      { name, email, rating, status: review.status },
       req,
-      `Created new testimony from ${name} with rating ${rating}`
+      `Created new review from ${name} with rating ${rating}`
     );
 
     res.status(201).json({
       success: true,
-      message: "Testimony created successfully",
-      data: testimony,
+      message: "Review created successfully",
+      data: review,
     });
   } catch (error) {
-    console.error("Error creating testimony:", error);
+    console.error("Error creating review:", error);
     res.status(500).json({
       success: false,
-      message: "Error creating testimony",
+      message: "Error creating review",
       error: error.message,
     });
   }
 };
 
-// Get all testimonies with pagination and filters
-const getAllTestimonies = async (req, res) => {
+// Get all reviews with pagination and filters
+const getAllReviews = async (req, res) => {
   try {
     const {
       page = 1,
@@ -90,11 +96,13 @@ const getAllTestimonies = async (req, res) => {
     if (search) {
       whereClause[Op.or] = [
         { name: { [Op.like]: `%${search}%` } },
-        { description: { [Op.like]: `%${search}%` } },
+        { comment: { [Op.like]: `%${search}%` } },
+        { email: { [Op.like]: `%${search}%` } },
+        { location: { [Op.like]: `%${search}%` } },
       ];
     }
 
-    const { count, rows } = await Testimony.findAndCountAll({
+    const { count, rows } = await Review.findAndCountAll({
       where: whereClause,
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -112,70 +120,78 @@ const getAllTestimonies = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching testimonies:", error);
+    console.error("Error fetching reviews:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching testimonies",
+      message: "Error fetching reviews",
       error: error.message,
     });
   }
 };
 
-// Get single testimony by ID
-const getTestimonyById = async (req, res) => {
+// Get single review by ID
+const getReviewById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const testimony = await Testimony.findByPk(id);
+    const review = await Review.findByPk(id);
 
-    if (!testimony) {
+    if (!review) {
       return res.status(404).json({
         success: false,
-        message: "Testimony not found",
+        message: "Review not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: testimony,
+      data: review,
     });
   } catch (error) {
-    console.error("Error fetching testimony:", error);
+    console.error("Error fetching review:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching testimony",
+      message: "Error fetching review",
       error: error.message,
     });
   }
 };
 
-// Update testimony
-const updateTestimony = async (req, res) => {
+// Update review
+const updateReview = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, rating, description, status } = req.body;
+    const { name, email, phone, location, rating, comment, status, recommend } =
+      req.body;
 
-    const testimony = await Testimony.findByPk(id);
+    const review = await Review.findByPk(id);
 
-    if (!testimony) {
+    if (!review) {
       return res.status(404).json({
         success: false,
-        message: "Testimony not found",
+        message: "Review not found",
       });
     }
 
     // Store old values for audit
     const oldValues = {
-      name: testimony.name,
-      rating: testimony.rating,
-      description: testimony.description,
-      status: testimony.status,
+      name: review.name,
+      email: review.email,
+      phone: review.phone,
+      location: review.location,
+      rating: review.rating,
+      comment: review.comment,
+      status: review.status,
+      recommend: review.recommend,
     };
 
     // Prepare update data - only include fields that are provided
     const updateData = {};
-    
+
     if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (location !== undefined) updateData.location = location;
     if (rating !== undefined) {
       if (rating < 1 || rating > 5) {
         return res.status(400).json({
@@ -185,54 +201,55 @@ const updateTestimony = async (req, res) => {
       }
       updateData.rating = rating;
     }
-    if (description !== undefined) updateData.description = description;
+    if (comment !== undefined) updateData.comment = comment;
     if (status !== undefined) updateData.status = status;
+    if (recommend !== undefined) updateData.recommend = recommend;
 
-    // Update testimony
-    await testimony.update(updateData);
+    // Update review
+    await review.update(updateData);
 
     // Log audit trail
     await logUpdate(
       req.user?.id,
-      "testimony",
+      "review",
       id,
       oldValues,
       updateData,
       req,
-      `Updated testimony with ID: ${id}`
+      `Updated review with ID: ${id}`
     );
 
     res.status(200).json({
       success: true,
-      message: "Testimony updated successfully",
-      data: testimony,
+      message: "Review updated successfully",
+      data: review,
     });
   } catch (error) {
-    console.error("Error updating testimony:", error);
+    console.error("Error updating review:", error);
     res.status(500).json({
       success: false,
-      message: "Error updating testimony",
+      message: "Error updating review",
       error: error.message,
     });
   }
 };
 
-// Update testimony status
-const updateTestimonyStatus = async (req, res) => {
+// Update review status
+const updateReviewStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    const testimony = await Testimony.findByPk(id);
+    const review = await Review.findByPk(id);
 
-    if (!testimony) {
+    if (!review) {
       return res.status(404).json({
         success: false,
-        message: "Testimony not found",
+        message: "Review not found",
       });
     }
 
-    const oldStatus = testimony.status;
+    const oldStatus = review.status;
 
     // Validate status
     const validStatuses = ["pending", "approved", "rejected"];
@@ -243,84 +260,85 @@ const updateTestimonyStatus = async (req, res) => {
       });
     }
 
-    // Update testimony status
-    await testimony.update({ status });
+    // Update review status
+    await review.update({ status });
 
     // Log audit trail
     await logStatusChange(
       req.user?.id,
-      "testimony",
+      "review",
       id,
       oldStatus,
       status,
       req,
-      `Changed testimony status from ${oldStatus} to ${status}`
+      `Changed review status from ${oldStatus} to ${status}`
     );
 
     res.status(200).json({
       success: true,
-      message: "Testimony status updated successfully",
-      data: testimony,
+      message: "Review status updated successfully",
+      data: review,
     });
   } catch (error) {
-    console.error("Error updating testimony status:", error);
+    console.error("Error updating review status:", error);
     res.status(500).json({
       success: false,
-      message: "Error updating testimony status",
+      message: "Error updating review status",
       error: error.message,
     });
   }
 };
 
-// Delete testimony
-const deleteTestimony = async (req, res) => {
+// Delete review
+const deleteReview = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const testimony = await Testimony.findByPk(id);
+    const review = await Review.findByPk(id);
 
-    if (!testimony) {
+    if (!review) {
       return res.status(404).json({
         success: false,
-        message: "Testimony not found",
+        message: "Review not found",
       });
     }
 
-    // Store testimony data for audit log
-    const testimonyData = {
-      name: testimony.name,
-      rating: testimony.rating,
-      status: testimony.status,
+    // Store review data for audit log
+    const reviewData = {
+      name: review.name,
+      email: review.email,
+      rating: review.rating,
+      status: review.status,
     };
 
-    await testimony.destroy();
+    await review.destroy();
 
     // Log audit trail
     await logDelete(
       req.user?.id,
-      "testimony",
+      "review",
       id,
-      testimonyData,
+      reviewData,
       req,
-      `Deleted testimony from ${testimonyData.name} with rating ${testimonyData.rating}`
+      `Deleted review from ${reviewData.name} with rating ${reviewData.rating}`
     );
 
     res.status(200).json({
       success: true,
-      message: "Testimony deleted successfully",
+      message: "Review deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting testimony:", error);
+    console.error("Error deleting review:", error);
     res.status(500).json({
       success: false,
-      message: "Error deleting testimony",
+      message: "Error deleting review",
       error: error.message,
     });
   }
 };
 
-// Get approved testimonies for public display
-const getApprovedTestimonies = async (req, res) => {
+// Get approved reviews for public display
+const getApprovedReviews = async (req, res) => {
   try {
     const {
       page = 1,
@@ -333,7 +351,7 @@ const getApprovedTestimonies = async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    // Build filter conditions - only approved testimonies
+    // Build filter conditions - only approved reviews
     const whereClause = { status: "approved" };
 
     if (rating) {
@@ -343,11 +361,13 @@ const getApprovedTestimonies = async (req, res) => {
     if (search) {
       whereClause[Op.or] = [
         { name: { [Op.like]: `%${search}%` } },
-        { description: { [Op.like]: `%${search}%` } },
+        { comment: { [Op.like]: `%${search}%` } },
+        { email: { [Op.like]: `%${search}%` } },
+        { location: { [Op.like]: `%${search}%` } },
       ];
     }
 
-    const { count, rows } = await Testimony.findAndCountAll({
+    const { count, rows } = await Review.findAndCountAll({
       where: whereClause,
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -365,55 +385,55 @@ const getApprovedTestimonies = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching approved testimonies:", error);
+    console.error("Error fetching approved reviews:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching testimonies",
+      message: "Error fetching reviews",
       error: error.message,
     });
   }
 };
 
-// Get single approved testimony by ID (public)
-const getApprovedTestimonyById = async (req, res) => {
+// Get single approved review by ID (public)
+const getApprovedReviewById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const testimony = await Testimony.findOne({
+    const review = await Review.findOne({
       where: {
         id: id,
         status: "approved",
       },
     });
 
-    if (!testimony) {
+    if (!review) {
       return res.status(404).json({
         success: false,
-        message: "Testimony not found or not approved",
+        message: "Review not found or not approved",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: testimony,
+      data: review,
     });
   } catch (error) {
-    console.error("Error fetching testimony:", error);
+    console.error("Error fetching review:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching testimony",
+      message: "Error fetching review",
       error: error.message,
     });
   }
 };
 
 module.exports = {
-  createTestimony,
-  getAllTestimonies,
-  getTestimonyById,
-  updateTestimony,
-  updateTestimonyStatus,
-  deleteTestimony,
-  getApprovedTestimonies,
-  getApprovedTestimonyById,
+  createReview,
+  getAllReviews,
+  getReviewById,
+  updateReview,
+  updateReviewStatus,
+  deleteReview,
+  getApprovedReviews,
+  getApprovedReviewById,
 };
