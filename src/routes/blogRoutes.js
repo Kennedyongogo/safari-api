@@ -6,6 +6,8 @@ const {
   getBlogById,
   getPublicBlogs,
   getPublicBlogBySlug,
+  incrementBlogView,
+  incrementBlogLike,
   updateBlog,
   updateBlogStatus,
   deleteBlog,
@@ -20,6 +22,8 @@ const { errorHandler } = require("../middleware/errorHandler");
 // Public routes
 router.get("/public", getPublicBlogs);
 router.get("/public/:slug", getPublicBlogBySlug);
+router.post("/public/:slug/view", incrementBlogView);
+router.post("/public/:slug/like", incrementBlogLike);
 
 // Admin routes
 router.use(authenticateAdmin);

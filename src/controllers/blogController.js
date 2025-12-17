@@ -142,6 +142,7 @@ const getAllBlogs = async (req, res) => {
       featured,
       sortBy = "createdAt",
       sortOrder = "DESC",
+      categories,
     } = req.query;
 
     const where = {};
@@ -157,6 +158,14 @@ const getAllBlogs = async (req, res) => {
 
     if (category) {
       where.category = category;
+    } else if (categories) {
+      const list = categories
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean);
+      if (list.length) {
+        where.category = { [Op.in]: list };
+      }
     }
 
     if (status) {
@@ -226,10 +235,17 @@ const getBlogById = async (req, res) => {
 // Get public blogs (published)
 const getPublicBlogs = async (req, res) => {
   try {
-    const { category, featured, limit = 10 } = req.query;
+    const { category, categories, featured, limit = 10 } = req.query;
     const where = { status: "published" };
 
     if (category) where.category = category;
+    else if (categories) {
+      const list = categories
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean);
+      if (list.length) where.category = { [Op.in]: list };
+    }
     if (featured !== undefined) where.featured = featured === "true";
 
     const blogs = await Blog.findAll({
@@ -288,6 +304,62 @@ const getPublicBlogBySlug = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error fetching blog",
+      error: error.message,
+    });
+  }
+};
+
+// Increment view count (public)
+const incrementBlogView = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const blog = await Blog.findOne({ where: { slug, status: "published" } });
+    if (!blog) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Blog not found" });
+    }
+    await blog.increment("views");
+    await blog.reload({ attributes: ["views"] });
+
+    return res.status(200).json({
+      success: true,
+      message: "View count incremented",
+      data: { views: blog.views },
+    });
+  } catch (error) {
+    console.error("Error incrementing blog view:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error incrementing view count",
+      error: error.message,
+    });
+  }
+};
+
+// Increment like count (public)
+const incrementBlogLike = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const blog = await Blog.findOne({ where: { slug, status: "published" } });
+    if (!blog) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Blog not found" });
+    }
+    await blog.increment("likes");
+    await blog.reload({ attributes: ["likes"] });
+
+    return res.status(200).json({
+      success: true,
+      message: "Like count incremented",
+      data: { likes: blog.likes },
+    });
+  } catch (error) {
+    console.error("Error incrementing blog like:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error incrementing like count",
       error: error.message,
     });
   }
@@ -495,6 +567,8 @@ module.exports = {
   getBlogById,
   getPublicBlogs,
   getPublicBlogBySlug,
+  incrementBlogView,
+  incrementBlogLike,
   updateBlog,
   updateBlogStatus,
   deleteBlog,

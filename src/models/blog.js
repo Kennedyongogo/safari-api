@@ -36,7 +36,14 @@ module.exports = (sequelize) => {
         allowNull: true,
       },
       category: {
-        type: DataTypes.STRING,
+        type: DataTypes.ENUM(
+          "Wildlife",
+          "Travel Tips",
+          "Conservation",
+          "Photography",
+          "Guides",
+          "Other"
+        ),
         allowNull: true,
       },
       tags: {

@@ -38,7 +38,7 @@ const initializeModels = async () => {
     await Document.sync({ force: false, alter: false });
     await AuditTrail.sync({ force: false, alter: false });
     await Review.sync({ force: false, alter: false });
-    await Blog.sync({ force: false, alter: true });
+    await Blog.sync({ force: false, alter: false });
     await MissionCategory.sync({ force: false, alter: false });
     await Post.sync({ force: false, alter: false });
     await Member.sync({ force: false, alter: false });
