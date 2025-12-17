@@ -20,6 +20,7 @@ const reportRoutes = require("./routes/reportRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
+const blogRoutes = require("./routes/blogRoutes");
 const missionCategoryRoutes = require("./routes/missionCategoryRoutes");
 const postRoutes = require("./routes/postRoutes");
 const memberRoutes = require("./routes/memberRoutes");
@@ -39,6 +40,7 @@ const projectsUploadPath = path.join(__dirname, "..", "uploads", "projects");
 const inquiriesUploadPath = path.join(__dirname, "..", "uploads", "inquiries");
 const missionCategoriesUploadPath = path.join(__dirname, "..", "uploads", "mission-categories");
 const postsUploadPath = path.join(__dirname, "..", "uploads", "posts");
+const authorsUploadPath = path.join(__dirname, "..", "uploads", "authors");
 const miscUploadPath = path.join(__dirname, "..", "uploads", "misc");
 
 console.log("📁 Upload Paths:");
@@ -48,6 +50,7 @@ console.log("  - Projects:", projectsUploadPath, "- Exists:", fs.existsSync(proj
 console.log("  - Inquiries:", inquiriesUploadPath, "- Exists:", fs.existsSync(inquiriesUploadPath));
 console.log("  - Mission Categories:", missionCategoriesUploadPath, "- Exists:", fs.existsSync(missionCategoriesUploadPath));
 console.log("  - Posts:", postsUploadPath, "- Exists:", fs.existsSync(postsUploadPath));
+console.log("  - Authors:", authorsUploadPath, "- Exists:", fs.existsSync(authorsUploadPath));
 console.log("  - Misc:", miscUploadPath, "- Exists:", fs.existsSync(miscUploadPath));
 
 // Serve static files
@@ -57,6 +60,7 @@ app.use("/uploads/projects", express.static(projectsUploadPath));
 app.use("/uploads/inquiries", express.static(inquiriesUploadPath));
 app.use("/uploads/mission-categories", express.static(missionCategoriesUploadPath));
 app.use("/uploads/posts", express.static(postsUploadPath));
+app.use("/uploads/authors", express.static(authorsUploadPath));
 app.use("/uploads/misc", express.static(miscUploadPath));
 
 // API routes
@@ -71,6 +75,9 @@ console.log("✅ /api/public-projects/:id route registered (public)");
 
 app.use("/api/reviews", reviewRoutes);
 console.log("✅ /api/reviews route registered");
+
+app.use("/api/blogs", blogRoutes);
+console.log("✅ /api/blogs route registered");
 
 app.use("/api/admin-users", adminUserRoutes);
 console.log("✅ /api/admin-users route registered");

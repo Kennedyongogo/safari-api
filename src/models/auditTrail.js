@@ -47,6 +47,7 @@ module.exports = (sequelize) => {
           "review",
           "mission_category",
           "post",
+          "blog",
           "member",
           "system",
           "other"

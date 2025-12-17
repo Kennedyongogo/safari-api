@@ -7,6 +7,7 @@ const Project = require("./project")(sequelize);
 const Document = require("./document")(sequelize);
 const AuditTrail = require("./auditTrail")(sequelize);
 const Review = require("./review")(sequelize);
+const Blog = require("./blog")(sequelize);
 const MissionCategory = require("./missionCategory")(sequelize);
 const Post = require("./post")(sequelize);
 const Member = require("./member")(sequelize);
@@ -18,6 +19,7 @@ const models = {
   Document,
   AuditTrail,
   Review,
+  Blog,
   MissionCategory,
   Post,
   Member,
@@ -36,6 +38,7 @@ const initializeModels = async () => {
     await Document.sync({ force: false, alter: false });
     await AuditTrail.sync({ force: false, alter: false });
     await Review.sync({ force: false, alter: false });
+    await Blog.sync({ force: false, alter: true });
     await MissionCategory.sync({ force: false, alter: false });
     await Post.sync({ force: false, alter: false });
     await Member.sync({ force: false, alter: false });
@@ -112,6 +115,16 @@ const setupAssociations = () => {
       as: "createdPosts",
     });
     models.Post.belongsTo(models.AdminUser, {
+      foreignKey: "created_by",
+      as: "creator",
+    });
+
+    // AdminUser → Blog (1:Many)
+    models.AdminUser.hasMany(models.Blog, {
+      foreignKey: "created_by",
+      as: "createdBlogs",
+    });
+    models.Blog.belongsTo(models.AdminUser, {
       foreignKey: "created_by",
       as: "creator",
     });

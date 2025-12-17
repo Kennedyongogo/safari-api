@@ -30,13 +30,23 @@ const storage = multer.diskStorage({
       file.fieldname === "mission_category_image" ||
       file.fieldname === "mission_category_images"
     ) {
-      uploadPath = path.join(__dirname, "..", "..", "uploads", "mission-categories");
+      uploadPath = path.join(
+        __dirname,
+        "..",
+        "..",
+        "uploads",
+        "mission-categories"
+      );
     } else if (
       file.fieldname === "post_image" ||
       file.fieldname === "post_images" ||
-      file.fieldname === "post_banner"
+      file.fieldname === "post_banner" ||
+      file.fieldname === "blog_image" ||
+      file.fieldname === "blog_featured_image"
     ) {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "posts");
+    } else if (file.fieldname === "author_image") {
+      uploadPath = path.join(__dirname, "..", "..", "uploads", "authors");
     } else {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "misc");
     }
@@ -77,11 +87,14 @@ const fileFilter = (req, file, cb) => {
     // Documents
     "application/pdf": ".pdf",
     "application/msword": ".doc",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+      ".docx",
     "application/vnd.ms-excel": ".xls",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+      ".xlsx",
     "application/vnd.ms-powerpoint": ".ppt",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+      ".pptx",
     "text/plain": ".txt",
     "text/csv": ".csv",
   };
@@ -91,7 +104,9 @@ const fileFilter = (req, file, cb) => {
   } else {
     cb(
       new Error(
-        `Invalid file type: ${file.mimetype}. Allowed types: ${Object.values(allowedTypes).join(", ")}`
+        `Invalid file type: ${file.mimetype}. Allowed types: ${Object.values(
+          allowedTypes
+        ).join(", ")}`
       ),
       false
     );
@@ -144,6 +159,15 @@ const uploadPostBanner = upload.single("post_banner");
 const uploadPostFiles = upload.fields([
   { name: "post_images", maxCount: 10 },
   { name: "post_banner", maxCount: 1 },
+]);
+
+// Middleware for blog featured image
+const uploadBlogImage = upload.single("blog_image");
+
+// Middleware for blog assets (featured + author image)
+const uploadBlogAssets = upload.fields([
+  { name: "blog_image", maxCount: 1 },
+  { name: "author_image", maxCount: 1 },
 ]);
 
 // Middleware for mixed uploads (multiple fields)
@@ -207,19 +231,22 @@ const getFileType = (mimetype) => {
   if (mimetype === "application/pdf") return "pdf";
   if (
     mimetype === "application/msword" ||
-    mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    mimetype ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
     return "word";
   }
   if (
     mimetype === "application/vnd.ms-excel" ||
-    mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    mimetype ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   ) {
     return "excel";
   }
   if (
     mimetype === "application/vnd.ms-powerpoint" ||
-    mimetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    mimetype ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
   ) {
     return "powerpoint";
   }
@@ -240,6 +267,8 @@ module.exports = {
   uploadPostImages,
   uploadPostBanner,
   uploadPostFiles,
+  uploadBlogImage,
+  uploadBlogAssets,
   uploadMixed,
   handleUploadError,
   deleteFile,
