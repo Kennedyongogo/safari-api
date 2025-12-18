@@ -47,6 +47,12 @@ const storage = multer.diskStorage({
       uploadPath = path.join(__dirname, "..", "..", "uploads", "posts");
     } else if (file.fieldname === "author_image") {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "authors");
+    } else if (
+      file.fieldname === "lodge_image" ||
+      file.fieldname === "lodge_images" ||
+      file.fieldname === "lodge_gallery"
+    ) {
+      uploadPath = path.join(__dirname, "..", "..", "uploads", "lodges");
     } else {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "misc");
     }
@@ -177,6 +183,11 @@ const uploadMixed = upload.fields([
   { name: "documents", maxCount: 10 },
 ]);
 
+// Middleware for lodge images
+const uploadLodgeImage = upload.single("lodge_image");
+const uploadLodgeImages = upload.array("lodge_images", 10);
+const uploadLodgeGallery = upload.array("lodge_gallery", 10);
+
 // Error handling middleware for multer
 const handleUploadError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
@@ -270,6 +281,9 @@ module.exports = {
   uploadBlogImage,
   uploadBlogAssets,
   uploadMixed,
+  uploadLodgeImage,
+  uploadLodgeImages,
+  uploadLodgeGallery,
   handleUploadError,
   deleteFile,
   getFileType,

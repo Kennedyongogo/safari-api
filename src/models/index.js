@@ -11,6 +11,7 @@ const Blog = require("./blog")(sequelize);
 const MissionCategory = require("./missionCategory")(sequelize);
 const Post = require("./post")(sequelize);
 const Member = require("./member")(sequelize);
+const Lodge = require("./lodge")(sequelize);
 
 const models = {
   AdminUser,
@@ -23,6 +24,7 @@ const models = {
   MissionCategory,
   Post,
   Member,
+  Lodge,
 };
 
 // Initialize models in correct order (parent tables first)
@@ -42,6 +44,7 @@ const initializeModels = async () => {
     await MissionCategory.sync({ force: false, alter: false });
     await Post.sync({ force: false, alter: false });
     await Member.sync({ force: false, alter: false });
+    await Lodge.sync({ force: false, alter: false });
 
     console.log("✅ All models synced successfully");
   } catch (error) {
