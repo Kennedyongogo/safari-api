@@ -188,6 +188,9 @@ const uploadLodgeImage = upload.single("lodge_image");
 const uploadLodgeImages = upload.array("lodge_images", 10);
 const uploadLodgeGallery = upload.array("lodge_gallery", 10);
 
+// Middleware for package images
+const uploadPackageImage = upload.single("image");
+
 // Error handling middleware for multer
 const handleUploadError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
@@ -284,6 +287,7 @@ module.exports = {
   uploadLodgeImage,
   uploadLodgeImages,
   uploadLodgeGallery,
+  uploadPackageImage,
   handleUploadError,
   deleteFile,
   getFileType,

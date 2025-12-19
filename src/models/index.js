@@ -12,6 +12,8 @@ const MissionCategory = require("./missionCategory")(sequelize);
 const Post = require("./post")(sequelize);
 const Member = require("./member")(sequelize);
 const Lodge = require("./lodge")(sequelize);
+const Package = require("./package")(sequelize);
+const RouteStage = require("./routeStage")(sequelize);
 
 const models = {
   AdminUser,
@@ -25,6 +27,8 @@ const models = {
   Post,
   Member,
   Lodge,
+  Package,
+  RouteStage,
 };
 
 // Initialize models in correct order (parent tables first)
@@ -45,6 +49,8 @@ const initializeModels = async () => {
     await Post.sync({ force: false, alter: false });
     await Member.sync({ force: false, alter: false });
     await Lodge.sync({ force: false, alter: false });
+    await Package.sync({ force: false, alter: false });
+    await RouteStage.sync({ force: true, alter: false });
 
     console.log("✅ All models synced successfully");
   } catch (error) {
@@ -130,6 +136,17 @@ const setupAssociations = () => {
     models.Blog.belongsTo(models.AdminUser, {
       foreignKey: "created_by",
       as: "creator",
+    });
+
+    // Package → RouteStage (1:Many)
+    models.Package.hasMany(models.RouteStage, {
+      foreignKey: "packageId",
+      as: "routeStages",
+      onDelete: "CASCADE",
+    });
+    models.RouteStage.belongsTo(models.Package, {
+      foreignKey: "packageId",
+      as: "package",
     });
 
     console.log("✅ All associations set up successfully");

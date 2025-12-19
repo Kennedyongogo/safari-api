@@ -25,6 +25,8 @@ const missionCategoryRoutes = require("./routes/missionCategoryRoutes");
 const postRoutes = require("./routes/postRoutes");
 const memberRoutes = require("./routes/memberRoutes");
 const lodgeRoutes = require("./routes/lodgeRoutes");
+const packageRoutes = require("./routes/packageRoutes");
+const routeStageRoutes = require("./routes/routeStageRoutes");
 
 const app = express();
 
@@ -33,45 +35,102 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cors());
 
-
 // Static file serving
 const profilesUploadPath = path.join(__dirname, "..", "uploads", "profiles");
 const documentsUploadPath = path.join(__dirname, "..", "uploads", "documents");
 const projectsUploadPath = path.join(__dirname, "..", "uploads", "projects");
 const inquiriesUploadPath = path.join(__dirname, "..", "uploads", "inquiries");
-const missionCategoriesUploadPath = path.join(__dirname, "..", "uploads", "mission-categories");
+const missionCategoriesUploadPath = path.join(
+  __dirname,
+  "..",
+  "uploads",
+  "mission-categories"
+);
 const postsUploadPath = path.join(__dirname, "..", "uploads", "posts");
 const authorsUploadPath = path.join(__dirname, "..", "uploads", "authors");
 const lodgesUploadPath = path.join(__dirname, "..", "uploads", "lodges");
+const packagesUploadPath = path.join(__dirname, "..", "uploads", "packages");
 const miscUploadPath = path.join(__dirname, "..", "uploads", "misc");
 
 console.log("📁 Upload Paths:");
-console.log("  - Profiles:", profilesUploadPath, "- Exists:", fs.existsSync(profilesUploadPath));
-console.log("  - Documents:", documentsUploadPath, "- Exists:", fs.existsSync(documentsUploadPath));
-console.log("  - Projects:", projectsUploadPath, "- Exists:", fs.existsSync(projectsUploadPath));
-console.log("  - Inquiries:", inquiriesUploadPath, "- Exists:", fs.existsSync(inquiriesUploadPath));
-console.log("  - Mission Categories:", missionCategoriesUploadPath, "- Exists:", fs.existsSync(missionCategoriesUploadPath));
-console.log("  - Posts:", postsUploadPath, "- Exists:", fs.existsSync(postsUploadPath));
-console.log("  - Authors:", authorsUploadPath, "- Exists:", fs.existsSync(authorsUploadPath));
-console.log("  - Lodges:", lodgesUploadPath, "- Exists:", fs.existsSync(lodgesUploadPath));
-console.log("  - Misc:", miscUploadPath, "- Exists:", fs.existsSync(miscUploadPath));
+console.log(
+  "  - Profiles:",
+  profilesUploadPath,
+  "- Exists:",
+  fs.existsSync(profilesUploadPath)
+);
+console.log(
+  "  - Documents:",
+  documentsUploadPath,
+  "- Exists:",
+  fs.existsSync(documentsUploadPath)
+);
+console.log(
+  "  - Projects:",
+  projectsUploadPath,
+  "- Exists:",
+  fs.existsSync(projectsUploadPath)
+);
+console.log(
+  "  - Inquiries:",
+  inquiriesUploadPath,
+  "- Exists:",
+  fs.existsSync(inquiriesUploadPath)
+);
+console.log(
+  "  - Mission Categories:",
+  missionCategoriesUploadPath,
+  "- Exists:",
+  fs.existsSync(missionCategoriesUploadPath)
+);
+console.log(
+  "  - Posts:",
+  postsUploadPath,
+  "- Exists:",
+  fs.existsSync(postsUploadPath)
+);
+console.log(
+  "  - Authors:",
+  authorsUploadPath,
+  "- Exists:",
+  fs.existsSync(authorsUploadPath)
+);
+console.log(
+  "  - Lodges:",
+  lodgesUploadPath,
+  "- Exists:",
+  fs.existsSync(lodgesUploadPath)
+);
+console.log(
+  "  - Misc:",
+  miscUploadPath,
+  "- Exists:",
+  fs.existsSync(miscUploadPath)
+);
 
 // Serve static files
 app.use("/uploads/profiles", express.static(profilesUploadPath));
 app.use("/uploads/documents", express.static(documentsUploadPath));
 app.use("/uploads/projects", express.static(projectsUploadPath));
 app.use("/uploads/inquiries", express.static(inquiriesUploadPath));
-app.use("/uploads/mission-categories", express.static(missionCategoriesUploadPath));
+app.use(
+  "/uploads/mission-categories",
+  express.static(missionCategoriesUploadPath)
+);
 app.use("/uploads/posts", express.static(postsUploadPath));
 app.use("/uploads/authors", express.static(authorsUploadPath));
 app.use("/uploads/lodges", express.static(lodgesUploadPath));
+app.use("/uploads/packages", express.static(packagesUploadPath));
 app.use("/uploads/misc", express.static(miscUploadPath));
 
 // API routes
 console.log("🔗 Registering API routes...");
 
 // Public routes (no authentication required)
-const { getPublicProjects, getPublicProjectById } = require("./controllers/projectController");
+const {
+  getPublicProjects,
+  getPublicProjectById,
+} = require("./controllers/projectController");
 app.get("/api/public-projects", getPublicProjects);
 console.log("✅ /api/public-projects route registered (public)");
 app.get("/api/public-projects/:id", getPublicProjectById);
@@ -117,52 +176,54 @@ app.use("/api/members", memberRoutes);
 console.log("✅ /api/members route registered");
 
 app.use("/api/lodges", lodgeRoutes);
+app.use("/api/packages", packageRoutes);
+app.use("/api/route-stages", routeStageRoutes);
 console.log("✅ /api/lodges route registered");
 
 // Forgot password endpoint
 app.post("/api/auth/forgot", async (req, res) => {
   try {
     const { Email } = req.body;
-    
+
     if (!Email) {
       return res.status(400).json({
         success: false,
-        error: "Email is required"
+        error: "Email is required",
       });
     }
-    
+
     // Find admin by email
     const admin = await AdminUser.findOne({ where: { email: Email } });
     if (!admin) {
       return res.status(404).json({
         success: false,
-        error: "No account found with this email address"
+        error: "No account found with this email address",
       });
     }
-    
+
     // Generate a new random password (8 characters)
     const newPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    
+
     // Update admin password
     await admin.update({ password: hashedPassword });
-    
+
     // Send email with new password
     try {
       // Create transporter (using Gmail SMTP)
       const transporter = nodemailer.createTransport({
-        service: 'gmail',
+        service: "gmail",
         auth: {
-          user: 'ongogokennedy89@gmail.com', // Your Gmail
-          pass: 'mnfj zxio cgxw zefv'     // Your Gmail App Password
-        }
+          user: "ongogokennedy89@gmail.com", // Your Gmail
+          pass: "mnfj zxio cgxw zefv", // Your Gmail App Password
+        },
       });
-      
+
       // Email content
       const mailOptions = {
-        from: 'ongogokennedy89@gmail.com', // Your Gmail
+        from: "ongogokennedy89@gmail.com", // Your Gmail
         to: Email,
-        subject: 'Password Reset - Mwalimu Hope Foundation Admin Portal',
+        subject: "Password Reset - Mwalimu Hope Foundation Admin Portal",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">Password Reset Request</h2>
@@ -178,25 +239,24 @@ app.post("/api/auth/forgot", async (req, res) => {
             <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
             <p style="color: #666; font-size: 12px;">This is an automated message from Mwalimu Hope Foundation Admin Portal.</p>
           </div>
-        `
+        `,
       };
-      
+
       // Send email
       await transporter.sendMail(mailOptions);
-      
     } catch (emailError) {
       // Don't fail the request if email fails, just log it silently
     }
-    
+
     res.status(200).json({
       success: true,
-      message: "Password reset email sent"
+      message: "Password reset email sent",
     });
   } catch (error) {
     console.error("Error in forgot password:", error);
     res.status(500).json({
       success: false,
-      error: "Error processing password reset"
+      error: "Error processing password reset",
     });
   }
 });
@@ -255,7 +315,7 @@ const createUploadDirectories = () => {
 const initializeApp = async () => {
   try {
     console.log("🚀 Initializing application...");
-    
+
     // Create upload directories
     createUploadDirectories();
     console.log("✅ Upload directories ready");
@@ -263,15 +323,15 @@ const initializeApp = async () => {
     // Initialize database models
     await initializeModels();
     console.log("✅ Database models initialized");
-    
+
     // Setup model associations
     setupAssociations();
     console.log("✅ Model associations configured");
-    
+
     // Initialize chatbot
     initializeChatbot();
     console.log("✅ Chatbot initialized");
-    
+
     console.log("✅ Application initialized successfully");
     return true;
   } catch (error) {
