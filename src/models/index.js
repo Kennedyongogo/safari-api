@@ -42,7 +42,7 @@ const initializeModels = async () => {
     await Inquiry.sync({ force: false, alter: false });
     await Project.sync({ force: false, alter: false });
     await Document.sync({ force: false, alter: false });
-    await AuditTrail.sync({ force: false, alter: false });
+    await AuditTrail.sync({ force: false, alter: true }); // Allow enum additions
     await Review.sync({ force: false, alter: false });
     await Blog.sync({ force: false, alter: false });
     await MissionCategory.sync({ force: false, alter: false });

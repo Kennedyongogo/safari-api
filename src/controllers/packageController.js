@@ -361,16 +361,22 @@ const createPackage = async (req, res) => {
       isActive,
     } = req.body;
 
+    // Convert FormData strings to proper types
+    const parsedRating = rating ? parseFloat(rating) : 0;
+    const parsedIsActive = isActive === 'true' || isActive === true;
+
     // Validate required fields
-    const validationErrors = validatePackageData({
+    const validationData = {
       title,
       description,
       duration,
       price,
       groupSize,
       type,
-      rating,
-    });
+      rating: parsedRating,
+    };
+
+    const validationErrors = validatePackageData(validationData);
 
     if (validationErrors.length > 0) {
       return res.status(400).json({
@@ -397,13 +403,13 @@ const createPackage = async (req, res) => {
       image: imagePath,
       duration: duration.trim(),
       price: price.trim(),
-      pricePerPerson: pricePerPerson || "per person",
+      pricePerPerson: pricePerPerson && pricePerPerson.trim() ? pricePerPerson.trim() : "per person",
       groupSize: groupSize.trim(),
-      rating: rating || 0,
+      rating: parsedRating,
       highlights: highlightsArray,
       included: includedArray,
       type,
-      isActive: isActive !== undefined ? isActive : true,
+      isActive: parsedIsActive,
     });
 
     const normalizedPackage = normalizePackage(packageData);
@@ -456,6 +462,10 @@ const updatePackage = async (req, res) => {
       isActive,
     } = req.body;
 
+    // Convert FormData strings to proper types
+    const parsedRating = rating !== undefined ? parseFloat(rating) : undefined;
+    const parsedIsActive = isActive !== undefined ? (isActive === 'true' || isActive === true) : undefined;
+
     const packageData = await Package.findByPk(id);
 
     if (!packageData) {
@@ -481,7 +491,7 @@ const updatePackage = async (req, res) => {
         price: price || packageData.price,
         groupSize: groupSize || packageData.groupSize,
         type: type || packageData.type,
-        rating: rating !== undefined ? rating : packageData.rating,
+        rating: parsedRating !== undefined ? parsedRating : packageData.rating,
       });
 
       if (validationErrors.length > 0) {
@@ -512,13 +522,13 @@ const updatePackage = async (req, res) => {
     if (imagePath !== undefined) updateData.image = imagePath;
     if (duration !== undefined) updateData.duration = duration.trim();
     if (price !== undefined) updateData.price = price.trim();
-    if (pricePerPerson !== undefined) updateData.pricePerPerson = pricePerPerson;
+    if (pricePerPerson !== undefined) updateData.pricePerPerson = pricePerPerson && pricePerPerson.trim() ? pricePerPerson.trim() : "per person";
     if (groupSize !== undefined) updateData.groupSize = groupSize.trim();
-    if (rating !== undefined) updateData.rating = rating;
+    if (parsedRating !== undefined) updateData.rating = parsedRating;
     if (highlights !== undefined) updateData.highlights = highlightsArray;
     if (included !== undefined) updateData.included = includedArray;
     if (type !== undefined) updateData.type = type;
-    if (isActive !== undefined) updateData.isActive = isActive;
+    if (parsedIsActive !== undefined) updateData.isActive = parsedIsActive;
 
     await packageData.update(updateData);
 

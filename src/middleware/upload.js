@@ -53,17 +53,19 @@ const storage = multer.diskStorage({
       file.fieldname === "lodge_gallery"
     ) {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "lodges");
+    } else if (
+      file.fieldname === "stage_image" ||
+      file.fieldname === "stage_images"
+    ) {
+      uploadPath = path.join(__dirname, "..", "..", "uploads", "stages");
     } else {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "misc");
     }
 
-    console.log("📁 Upload destination:", uploadPath);
-    console.log("📁 Directory exists:", fs.existsSync(uploadPath));
 
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
-      console.log("📁 Created directory:", uploadPath);
     }
 
     cb(null, uploadPath);
@@ -76,7 +78,6 @@ const storage = multer.diskStorage({
     // Sanitize filename
     const sanitizedBasename = basename.replace(/[^a-zA-Z0-9]/g, "_");
     const filename = `${sanitizedBasename}-${uniqueSuffix}${extension}`;
-    console.log("📄 Generated filename:", filename);
     cb(null, filename);
   },
 });
@@ -229,7 +230,6 @@ const deleteFile = async (filePath) => {
   try {
     if (fs.existsSync(filePath)) {
       await fs.promises.unlink(filePath);
-      console.log("🗑️ Deleted file:", filePath);
       return true;
     }
     return false;

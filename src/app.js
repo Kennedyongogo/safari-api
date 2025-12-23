@@ -27,6 +27,7 @@ const memberRoutes = require("./routes/memberRoutes");
 const lodgeRoutes = require("./routes/lodgeRoutes");
 const packageRoutes = require("./routes/packageRoutes");
 const routeStageRoutes = require("./routes/routeStageRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
 
 const app = express();
 
@@ -50,6 +51,7 @@ const postsUploadPath = path.join(__dirname, "..", "uploads", "posts");
 const authorsUploadPath = path.join(__dirname, "..", "uploads", "authors");
 const lodgesUploadPath = path.join(__dirname, "..", "uploads", "lodges");
 const packagesUploadPath = path.join(__dirname, "..", "uploads", "packages");
+const stagesUploadPath = path.join(__dirname, "..", "uploads", "stages");
 const miscUploadPath = path.join(__dirname, "..", "uploads", "misc");
 
 console.log("📁 Upload Paths:");
@@ -121,6 +123,7 @@ app.use("/uploads/posts", express.static(postsUploadPath));
 app.use("/uploads/authors", express.static(authorsUploadPath));
 app.use("/uploads/lodges", express.static(lodgesUploadPath));
 app.use("/uploads/packages", express.static(packagesUploadPath));
+app.use("/uploads/stages", express.static(stagesUploadPath));
 app.use("/uploads/misc", express.static(miscUploadPath));
 
 // API routes
@@ -178,7 +181,9 @@ console.log("✅ /api/members route registered");
 app.use("/api/lodges", lodgeRoutes);
 app.use("/api/packages", packageRoutes);
 app.use("/api/route-stages", routeStageRoutes);
+app.use("/api/uploads", uploadRoutes);
 console.log("✅ /api/lodges route registered");
+console.log("✅ /api/uploads route registered");
 
 // Forgot password endpoint
 app.post("/api/auth/forgot", async (req, res) => {
@@ -300,6 +305,7 @@ const createUploadDirectories = () => {
     path.join(__dirname, "..", "uploads", "mission-categories"),
     path.join(__dirname, "..", "uploads", "posts"),
     path.join(__dirname, "..", "uploads", "lodges"),
+    path.join(__dirname, "..", "uploads", "stages"),
     path.join(__dirname, "..", "uploads", "misc"),
   ];
 

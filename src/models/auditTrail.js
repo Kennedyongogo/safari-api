@@ -49,6 +49,8 @@ module.exports = (sequelize) => {
           "post",
           "blog",
           "member",
+          "package",
+          "route_stage",
           "system",
           "other"
         ),
