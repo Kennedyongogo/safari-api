@@ -42,7 +42,7 @@ const initializeModels = async () => {
     await Inquiry.sync({ force: false, alter: false });
     await Project.sync({ force: false, alter: false });
     await Document.sync({ force: false, alter: false });
-    await AuditTrail.sync({ force: false, alter: true }); // Allow enum additions
+    await AuditTrail.sync({ force: false, alter: false }); // Allow enum additions
     await Review.sync({ force: false, alter: false });
     await Blog.sync({ force: false, alter: false });
     await MissionCategory.sync({ force: false, alter: false });
@@ -50,7 +50,7 @@ const initializeModels = async () => {
     await Member.sync({ force: false, alter: false });
     await Lodge.sync({ force: false, alter: false });
     await Package.sync({ force: false, alter: false });
-    await RouteStage.sync({ force: true, alter: false });
+    await RouteStage.sync({ force: false, alter: false });
 
     console.log("✅ All models synced successfully");
   } catch (error) {
