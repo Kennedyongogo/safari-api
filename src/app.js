@@ -27,6 +27,7 @@ const memberRoutes = require("./routes/memberRoutes");
 const lodgeRoutes = require("./routes/lodgeRoutes");
 const packageRoutes = require("./routes/packageRoutes");
 const routeStageRoutes = require("./routes/routeStageRoutes");
+const destinationRoutes = require("./routes/destinationRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 
 const app = express();
@@ -52,6 +53,7 @@ const authorsUploadPath = path.join(__dirname, "..", "uploads", "authors");
 const lodgesUploadPath = path.join(__dirname, "..", "uploads", "lodges");
 const packagesUploadPath = path.join(__dirname, "..", "uploads", "packages");
 const stagesUploadPath = path.join(__dirname, "..", "uploads", "stages");
+const destinationsUploadPath = path.join(__dirname, "..", "uploads", "destinations");
 const miscUploadPath = path.join(__dirname, "..", "uploads", "misc");
 
 console.log("📁 Upload Paths:");
@@ -124,6 +126,7 @@ app.use("/uploads/authors", express.static(authorsUploadPath));
 app.use("/uploads/lodges", express.static(lodgesUploadPath));
 app.use("/uploads/packages", express.static(packagesUploadPath));
 app.use("/uploads/stages", express.static(stagesUploadPath));
+app.use("/uploads/destinations", express.static(destinationsUploadPath));
 app.use("/uploads/misc", express.static(miscUploadPath));
 
 // API routes
@@ -181,6 +184,7 @@ console.log("✅ /api/members route registered");
 app.use("/api/lodges", lodgeRoutes);
 app.use("/api/packages", packageRoutes);
 app.use("/api/route-stages", routeStageRoutes);
+app.use("/api/destinations", destinationRoutes);
 app.use("/api/uploads", uploadRoutes);
 console.log("✅ /api/lodges route registered");
 console.log("✅ /api/uploads route registered");

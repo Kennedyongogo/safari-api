@@ -14,6 +14,7 @@ const Member = require("./member")(sequelize);
 const Lodge = require("./lodge")(sequelize);
 const Package = require("./package")(sequelize);
 const RouteStage = require("./routeStage")(sequelize);
+const Destination = require("./destination")(sequelize);
 
 const models = {
   AdminUser,
@@ -29,6 +30,7 @@ const models = {
   Lodge,
   Package,
   RouteStage,
+  Destination,
 };
 
 // Initialize models in correct order (parent tables first)
@@ -51,6 +53,7 @@ const initializeModels = async () => {
     await Lodge.sync({ force: false, alter: false });
     await Package.sync({ force: false, alter: false });
     await RouteStage.sync({ force: false, alter: false });
+    await Destination.sync({ force: false, alter: false });
 
     console.log("✅ All models synced successfully");
   } catch (error) {

@@ -58,6 +58,13 @@ const storage = multer.diskStorage({
       file.fieldname === "stage_images"
     ) {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "stages");
+    } else if (
+      file.fieldname === "hero_image" ||
+      file.fieldname === "gallery_images" ||
+      file.fieldname === "destination_image" ||
+      file.fieldname === "destination_images"
+    ) {
+      uploadPath = path.join(__dirname, "..", "..", "uploads", "destinations");
     } else {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "misc");
     }
@@ -192,6 +199,18 @@ const uploadLodgeGallery = upload.array("lodge_gallery", 10);
 // Middleware for package images
 const uploadPackageImage = upload.single("image");
 
+// Middleware for destination images (hero + gallery)
+const uploadDestinationImages = upload.fields([
+  { name: "hero_image", maxCount: 1 },
+  { name: "gallery_images", maxCount: 10 },
+]);
+
+// Middleware for single destination image
+const uploadDestinationImage = upload.single("destination_image");
+
+// Middleware for multiple destination images
+const uploadDestinationGallery = upload.array("gallery_images", 10);
+
 // Error handling middleware for multer
 const handleUploadError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
@@ -288,6 +307,9 @@ module.exports = {
   uploadLodgeImages,
   uploadLodgeGallery,
   uploadPackageImage,
+  uploadDestinationImages,
+  uploadDestinationImage,
+  uploadDestinationGallery,
   handleUploadError,
   deleteFile,
   getFileType,
