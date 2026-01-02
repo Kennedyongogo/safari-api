@@ -51,6 +51,7 @@ module.exports = (sequelize) => {
           "member",
           "package",
           "route_stage",
+          "destination",
           "system",
           "other"
         ),

@@ -1,6 +1,43 @@
 const { Lodge } = require("../models");
 const { Op } = require("sequelize");
 
+// Get lodges by country (for form conditional logic)
+const getLodgesByCountry = async (req, res) => {
+  try {
+    const { country } = req.params;
+
+    const lodges = await Lodge.findAll({
+      where: {
+        destination: country,
+      },
+      order: [["name", "ASC"]],
+    });
+
+    // Format for form options
+    const options = lodges.map(lodge => ({
+      id: lodge.id,
+      option_value: lodge.id,
+      option_label: lodge.name,
+      description: lodge.location,
+      display_order: 0,
+      is_default: false,
+      is_active: true,
+    }));
+
+    res.json({
+      success: true,
+      data: options,
+    });
+  } catch (error) {
+    console.error("Error fetching lodges by country:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching lodges by country",
+      error: error.message,
+    });
+  }
+};
+
 // Normalize helper
 const normalizeLodge = (lodge) => {
   if (!lodge) return lodge;
@@ -314,6 +351,7 @@ const deleteLodge = async (req, res) => {
 module.exports = {
   getPublicLodges,
   getPublicLodgeById,
+  getLodgesByCountry,
   createLodge,
   updateLodge,
   deleteLodge,

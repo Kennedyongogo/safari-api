@@ -5,6 +5,7 @@ const {
   getAllDestinations,
   getDestinationById,
   getDestinationBySlug,
+  getPublicDestinationById,
   updateDestination,
   deleteDestination,
   getPublicDestinations,
@@ -33,6 +34,13 @@ router.get("/public", getPublicDestinations);
  * @access  Public
  */
 router.get("/public/:slug", getDestinationBySlug);
+
+/**
+ * @route   GET /api/destinations/public/id/:id
+ * @desc    Get single destination by ID (public)
+ * @access  Public
+ */
+router.get("/public/id/:id", getPublicDestinationById);
 
 // All other routes require admin authentication
 router.use(authenticateAdmin);

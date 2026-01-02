@@ -16,6 +16,12 @@ const Package = require("./package")(sequelize);
 const RouteStage = require("./routeStage")(sequelize);
 const Destination = require("./destination")(sequelize);
 
+// Dynamic Form Models
+const Form = require("./form")(sequelize);
+const FormField = require("./formField")(sequelize);
+const FieldOption = require("./fieldOption")(sequelize);
+const FormSubmission = require("./formSubmission")(sequelize);
+
 const models = {
   AdminUser,
   Inquiry,
@@ -31,6 +37,11 @@ const models = {
   Package,
   RouteStage,
   Destination,
+  // Dynamic Form Models
+  Form,
+  FormField,
+  FieldOption,
+  FormSubmission,
 };
 
 // Initialize models in correct order (parent tables first)
@@ -44,7 +55,7 @@ const initializeModels = async () => {
     await Inquiry.sync({ force: false, alter: false });
     await Project.sync({ force: false, alter: false });
     await Document.sync({ force: false, alter: false });
-    await AuditTrail.sync({ force: false, alter: false }); // Allow enum additions
+    await AuditTrail.sync({ force: false, alter: false }); // Force recreate table with new enum
     await Review.sync({ force: false, alter: false });
     await Blog.sync({ force: false, alter: false });
     await MissionCategory.sync({ force: false, alter: false });
@@ -54,6 +65,12 @@ const initializeModels = async () => {
     await Package.sync({ force: false, alter: false });
     await RouteStage.sync({ force: false, alter: false });
     await Destination.sync({ force: false, alter: false });
+
+    // Dynamic Form Models
+    await Form.sync({ force: false, alter: false });
+    await FormField.sync({ force: false, alter: true }); // Allow schema changes for conditional logic
+    await FieldOption.sync({ force: false, alter: false });
+    await FormSubmission.sync({ force: false, alter: false });
 
     console.log("✅ All models synced successfully");
   } catch (error) {
@@ -150,6 +167,69 @@ const setupAssociations = () => {
     models.RouteStage.belongsTo(models.Package, {
       foreignKey: "packageId",
       as: "package",
+    });
+
+    // Dynamic Form Associations
+    // Form → FormField (1:Many)
+    models.Form.hasMany(models.FormField, {
+      foreignKey: "form_id",
+      as: "fields",
+      onDelete: "CASCADE",
+    });
+    models.FormField.belongsTo(models.Form, {
+      foreignKey: "form_id",
+      as: "form",
+    });
+
+    // FormField → FieldOption (1:Many)
+    models.FormField.hasMany(models.FieldOption, {
+      foreignKey: "form_field_id",
+      as: "options",
+      onDelete: "CASCADE",
+    });
+    models.FieldOption.belongsTo(models.FormField, {
+      foreignKey: "form_field_id",
+      as: "field",
+    });
+
+    // Form → FormSubmission (1:Many)
+    models.Form.hasMany(models.FormSubmission, {
+      foreignKey: "form_id",
+      as: "submissions",
+      onDelete: "CASCADE",
+    });
+    models.FormSubmission.belongsTo(models.Form, {
+      foreignKey: "form_id",
+      as: "form",
+    });
+
+    // AdminUser → Form (created_by/updated_by)
+    models.AdminUser.hasMany(models.Form, {
+      foreignKey: "created_by",
+      as: "createdForms",
+    });
+    models.Form.belongsTo(models.AdminUser, {
+      foreignKey: "created_by",
+      as: "creator",
+    });
+
+    models.AdminUser.hasMany(models.Form, {
+      foreignKey: "updated_by",
+      as: "updatedForms",
+    });
+    models.Form.belongsTo(models.AdminUser, {
+      foreignKey: "updated_by",
+      as: "updater",
+    });
+
+    // AdminUser → FormSubmission (reviewed_by)
+    models.AdminUser.hasMany(models.FormSubmission, {
+      foreignKey: "reviewed_by",
+      as: "reviewedSubmissions",
+    });
+    models.FormSubmission.belongsTo(models.AdminUser, {
+      foreignKey: "reviewed_by",
+      as: "reviewer",
     });
 
     console.log("✅ All associations set up successfully");

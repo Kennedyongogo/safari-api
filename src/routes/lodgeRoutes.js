@@ -2,6 +2,7 @@ const express = require("express");
 const {
   getPublicLodges,
   getPublicLodgeById,
+  getLodgesByCountry,
   getLodges,
   getLodgeById,
   createLodge,
@@ -21,6 +22,9 @@ const router = express.Router();
 // Public
 router.get("/public", getPublicLodges);
 router.get("/public/:id", getPublicLodgeById);
+
+// Form integration - get lodges by country for conditional forms
+router.get("/country/:country", getLodgesByCountry);
 
 // Upload middleware for lodges (featured + gallery)
 const lodgeUploads = [

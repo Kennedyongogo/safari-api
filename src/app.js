@@ -29,6 +29,8 @@ const packageRoutes = require("./routes/packageRoutes");
 const routeStageRoutes = require("./routes/routeStageRoutes");
 const destinationRoutes = require("./routes/destinationRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
+const formRoutes = require("./routes/formRoutes");
+const formFieldRoutes = require("./routes/formFieldRoutes");
 
 const app = express();
 
@@ -186,6 +188,8 @@ app.use("/api/packages", packageRoutes);
 app.use("/api/route-stages", routeStageRoutes);
 app.use("/api/destinations", destinationRoutes);
 app.use("/api/uploads", uploadRoutes);
+app.use("/api/forms", formRoutes);
+app.use("/api/form-fields", formFieldRoutes);
 console.log("✅ /api/lodges route registered");
 console.log("✅ /api/uploads route registered");
 

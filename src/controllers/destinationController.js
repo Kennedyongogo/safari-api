@@ -68,6 +68,21 @@ const createDestination = async (req, res) => {
       galleryImagesArray = [...galleryImagesArray, ...uploadedGalleryImages];
     }
 
+    // Handle attraction images upload - new format with indexed fields
+    const collectAttractionImages = () => {
+      const attractionImages = {};
+      if (req.files) {
+        Object.keys(req.files).forEach(key => {
+          if (key.startsWith('attraction_images_')) {
+            const index = parseInt(key.replace('attraction_images_', ''));
+            attractionImages[index] = req.files[key].map(file => convertToRelativePath(file.path));
+          }
+        });
+      }
+      return attractionImages;
+    };
+    const attractionImagesByIndex = collectAttractionImages();
+
     // Handle JSON arrays - convert to arrays if needed
     const parseJsonArray = (value) => {
       if (!value) return [];
@@ -96,6 +111,25 @@ const createDestination = async (req, res) => {
       return [];
     };
 
+    // Process attractions to merge uploaded images
+    const processAttractions = (attractionsData) => {
+      let parsedAttractions = parseJsonObject(attractionsData);
+      if (!Array.isArray(parsedAttractions)) {
+        parsedAttractions = [];
+      }
+
+      // Add uploaded attraction images to the correct attractions based on index
+      parsedAttractions = parsedAttractions.map((attraction, index) => {
+        const newImages = attractionImagesByIndex[index] || [];
+        return {
+          ...attraction,
+          images: [...(attraction.images || []), ...newImages]
+        };
+      });
+
+      return parsedAttractions;
+    };
+
     const destination = await Destination.create({
       title,
       slug: slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
@@ -110,7 +144,7 @@ const createDestination = async (req, res) => {
       wildlife_types: parseJsonArray(wildlife_types),
       featured_species: parseJsonArray(featured_species),
       key_highlights: parseJsonArray(key_highlights),
-      attractions: parseJsonObject(attractions),
+      attractions: processAttractions(attractions),
       category_tags: parseJsonArray(category_tags),
       best_visit_months: parseJsonArray(best_visit_months),
       is_active: is_active !== undefined ? is_active : true,
@@ -118,10 +152,10 @@ const createDestination = async (req, res) => {
     }, { transaction });
 
     // Log the creation
-    await logCreate(req.user?.id, 'Destination', destination.id, {
+    await logCreate(req.user?.id, 'destination', destination.id, {
       title: destination.title,
       location: destination.location,
-    }, transaction);
+    }, req);
 
     await transaction.commit();
 
@@ -292,6 +326,21 @@ const updateDestination = async (req, res) => {
       updates.gallery_images = [...existingGallery, ...uploadedGalleryImages];
     }
 
+    // Handle attraction images upload - new format with indexed fields
+    const collectAttractionImages = () => {
+      const attractionImages = {};
+      if (req.files) {
+        Object.keys(req.files).forEach(key => {
+          if (key.startsWith('attraction_images_')) {
+            const index = parseInt(key.replace('attraction_images_', ''));
+            attractionImages[index] = req.files[key].map(file => convertToRelativePath(file.path));
+          }
+        });
+      }
+      return attractionImages;
+    };
+    const attractionImagesByIndex = collectAttractionImages();
+
     // Parse JSON arrays if they're strings
     const parseJsonArray = (value) => {
       if (!value) return undefined;
@@ -319,9 +368,28 @@ const updateDestination = async (req, res) => {
       return undefined;
     };
 
+    // Process attractions to merge uploaded images
+    const processAttractions = (attractionsData) => {
+      let parsedAttractions = parseJsonObject(attractionsData);
+      if (!Array.isArray(parsedAttractions)) {
+        parsedAttractions = [];
+      }
+
+      // Add uploaded attraction images to the correct attractions based on index
+      parsedAttractions = parsedAttractions.map((attraction, index) => {
+        const newImages = attractionImagesByIndex[index] || [];
+        return {
+          ...attraction,
+          images: [...(attraction.images || []), ...newImages]
+        };
+      });
+
+      return parsedAttractions;
+    };
+
     // Apply parsing to array/object fields
     const arrayFields = ['wildlife_types', 'featured_species', 'key_highlights', 'category_tags', 'best_visit_months'];
-    const objectFields = ['attractions', 'gallery_images'];
+    const objectFields = ['gallery_images'];
 
     arrayFields.forEach(field => {
       if (updates[field] !== undefined) {
@@ -335,6 +403,11 @@ const updateDestination = async (req, res) => {
       }
     });
 
+    // Handle attractions separately to merge uploaded images
+    if (updates.attractions !== undefined) {
+      updates.attractions = processAttractions(updates.attractions);
+    }
+
     // Update slug if title changed
     if (updates.title && updates.title !== destination.title) {
       updates.slug = updates.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -343,7 +416,7 @@ const updateDestination = async (req, res) => {
     await destination.update(updates, { transaction });
 
     // Log the update
-    await logUpdate(req.user?.id, 'Destination', destination.id, updates, transaction);
+    await logUpdate(req.user?.id, 'destination', destination.id, null, updates, req);
 
     await transaction.commit();
 
@@ -358,6 +431,36 @@ const updateDestination = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update destination",
+      error: error.message,
+    });
+  }
+};
+
+// Get single destination by ID (public access)
+const getPublicDestinationById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const destination = await Destination.findOne({
+      where: { id, is_active: true },
+    });
+
+    if (!destination) {
+      return res.status(404).json({
+        success: false,
+        message: "Destination not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: destination,
+    });
+  } catch (error) {
+    console.error("Error fetching destination by ID:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch destination",
       error: error.message,
     });
   }
@@ -380,10 +483,10 @@ const deleteDestination = async (req, res) => {
     }
 
     // Log the deletion before destroying
-    await logDelete(req.user?.id, 'Destination', destination.id, {
+    await logDelete(req.user?.id, 'destination', destination.id, {
       title: destination.title,
       location: destination.location,
-    }, transaction);
+    }, req);
 
     await destination.destroy({ transaction });
 
@@ -431,6 +534,7 @@ module.exports = {
   getAllDestinations,
   getDestinationById,
   getDestinationBySlug,
+  getPublicDestinationById,
   updateDestination,
   deleteDestination,
   getPublicDestinations,
