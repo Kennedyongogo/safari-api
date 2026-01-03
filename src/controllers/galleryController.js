@@ -106,6 +106,7 @@ const getPublicGalleryItems = async (req, res) => {
     const {
       page = 1,
       limit = 12,
+      all = "false",
       type,
       category,
       location,
@@ -117,6 +118,7 @@ const getPublicGalleryItems = async (req, res) => {
       sortOrder = "DESC",
     } = req.query;
 
+    const returnAll = all === "true";
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
@@ -165,44 +167,78 @@ const getPublicGalleryItems = async (req, res) => {
       order = [[sortBy, orderDirection], ["priority", "DESC"], ["createdAt", "DESC"]];
     }
 
-    // Get total count and paginated results
-    const { count, rows } = await Gallery.findAndCountAll({
-      where,
-      limit: limitNum,
-      offset,
-      order,
-      include: [
-        {
-          model: Package,
-          as: "package",
-          attributes: ["id", "title"],
-          required: false,
-        },
-        {
-          model: Destination,
-          as: "destination",
-          attributes: ["id", "title", "slug"],
-          required: false,
-        },
-      ],
-    });
+    let items, totalCount;
 
-    const totalPages = Math.ceil(count / limitNum);
+    if (returnAll) {
+      // Return all items without pagination
+      const rows = await Gallery.findAll({
+        where,
+        order,
+        include: [
+          {
+            model: Package,
+            as: "package",
+            attributes: ["id", "title"],
+            required: false,
+          },
+          {
+            model: Destination,
+            as: "destination",
+            attributes: ["id", "title", "slug"],
+            required: false,
+          },
+        ],
+      });
+      items = rows.map(normalizeGalleryItem);
+      totalCount = rows.length;
+    } else {
+      // Return paginated results
+      const { count, rows } = await Gallery.findAndCountAll({
+        where,
+        limit: limitNum,
+        offset,
+        order,
+        include: [
+          {
+            model: Package,
+            as: "package",
+            attributes: ["id", "title"],
+            required: false,
+          },
+          {
+            model: Destination,
+            as: "destination",
+            attributes: ["id", "title", "slug"],
+            required: false,
+          },
+        ],
+      });
 
-    res.json({
+      items = rows.map(normalizeGalleryItem);
+      totalCount = count;
+    }
+
+    const response = {
       success: true,
       data: {
-        items: rows.map(normalizeGalleryItem),
-        pagination: {
-          currentPage: pageNum,
-          totalPages,
-          totalItems: count,
-          itemsPerPage: limitNum,
-          hasNextPage: pageNum < totalPages,
-          hasPrevPage: pageNum > 1,
-        },
+        items,
       },
-    });
+    };
+
+    // Only include pagination info if not returning all items
+    if (!returnAll) {
+      const totalPages = Math.ceil(totalCount / limitNum);
+      response.data.pagination = {
+        currentPage: pageNum,
+        totalPages,
+        totalItems: totalCount,
+        itemsPerPage: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1,
+      };
+    }
+
+    res.json(response);
   } catch (error) {
     console.error("Error fetching public gallery items:", error);
     res.status(500).json({
@@ -506,14 +542,21 @@ const updateGalleryItem = async (req, res) => {
         isActive: data.isActive === 'true' || data.isActive === true,
         isFeatured: data.isFeatured === 'true' || data.isFeatured === true,
         priority: data.priority ? parseInt(data.priority) : 0,
-        width: data.width ? parseInt(data.width) : undefined,
-        height: data.height ? parseInt(data.height) : undefined,
-        duration: data.duration ? parseFloat(data.duration) : undefined,
+        width: data.width ? parseInt(data.width) : null,
+        height: data.height ? parseInt(data.height) : null,
+        duration: data.duration ? parseFloat(data.duration) : null,
+        thumbnailPath: data.thumbnailPath || null,
         tags: data.tags ? processTags(data.tags) : [],
+        altText: data.altText ? (Array.isArray(data.altText) ? data.altText[0] : data.altText) : null,
       };
 
-      // Clear altText for videos (model validation requires this)
-      if (data.type === 'video') {
+      // Clear video-specific fields for images, image-specific fields for videos
+      if (data.type === 'image') {
+        data.duration = null;
+        data.thumbnailPath = null;
+      } else if (data.type === 'video') {
+        data.width = null;
+        data.height = null;
         data.altText = null;
       }
     } else {
@@ -521,8 +564,19 @@ const updateGalleryItem = async (req, res) => {
       if (data.tags) {
         data.tags = processTags(data.tags);
       }
-      // Clear altText for videos
-      if (data.type === 'video') {
+
+      // Ensure altText is a string or null
+      if (data.altText !== undefined) {
+        data.altText = Array.isArray(data.altText) ? data.altText[0] : (data.altText || null);
+      }
+
+      // Clear video-specific fields for images, image-specific fields for videos
+      if (data.type === 'image') {
+        data.duration = null;
+        data.thumbnailPath = null;
+      } else if (data.type === 'video') {
+        data.width = null;
+        data.height = null;
         data.altText = null;
       }
     }
@@ -687,14 +741,22 @@ const uploadGalleryItem = async (req, res) => {
     // Convert file path to relative path
     const relativePath = convertToRelativePath(file.path);
 
-    // Get image dimensions if it's an image (you might want to use a library like sharp for this)
+    // Get image dimensions and set video-specific fields
     let width = null;
     let height = null;
+    let duration = null;
+    let thumbnailPath = null;
+
     if (type === "image") {
       // For now, we'll set these as null - in production you'd extract actual dimensions
       // You can use libraries like 'sharp' or 'image-size' to get actual dimensions
       width = null;
       height = null;
+    } else if (type === "video") {
+      // For videos, duration and thumbnail will be set later by a video processing job
+      // For now, set them to null
+      duration = null;
+      thumbnailPath = null;
     }
 
     // Process tags
@@ -711,6 +773,8 @@ const uploadGalleryItem = async (req, res) => {
       fileSize: file.size,
       width,
       height,
+      duration,
+      thumbnailPath,
       altText: type === "image" ? altText : null,
       category: category || "general",
       tags: processedTags,
