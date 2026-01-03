@@ -1,6 +1,8 @@
 const { Destination, sequelize } = require("../models");
 const { Op } = require("sequelize");
+const path = require("path");
 const { convertToRelativePath } = require("../utils/filePath");
+const { deleteFile } = require("../middleware/upload");
 const {
   logCreate,
   logUpdate,
@@ -310,9 +312,14 @@ const updateDestination = async (req, res) => {
       });
     }
 
-    // Handle hero image upload
-    if (req.files && req.files.hero_image && req.files.hero_image[0]) {
-      updates.hero_image = convertToRelativePath(req.files.hero_image[0].path);
+    // Handle hero image - check if it's being explicitly set (including empty string for deletion)
+    if (updates.hero_image !== undefined) {
+      // If there's a new file upload, use that
+      if (req.files && req.files.hero_image && req.files.hero_image[0]) {
+        updates.hero_image = convertToRelativePath(req.files.hero_image[0].path);
+      }
+      // If hero_image is sent as empty string, keep it as empty (for deletion)
+      // If hero_image has a value, keep the existing value
     }
 
     // Handle gallery images upload
@@ -415,6 +422,44 @@ const updateDestination = async (req, res) => {
 
     await destination.update(updates, { transaction });
 
+    // Handle file deletion for removed images (after successful database update)
+    const oldHeroImage = destination.hero_image;
+    const oldGalleryImages = Array.isArray(destination.gallery_images) ? destination.gallery_images : [];
+    const oldAttractions = Array.isArray(destination.attractions) ? destination.attractions : [];
+
+    // Delete hero image if it was changed or removed
+    if (oldHeroImage && (!updates.hero_image || updates.hero_image !== oldHeroImage)) {
+      const fullPath = oldHeroImage.startsWith('uploads/') ? oldHeroImage : `uploads/destinations/${oldHeroImage}`;
+      await deleteFile(path.join(__dirname, '..', '..', fullPath));
+    }
+
+    // Delete gallery images that were removed
+    if (updates.gallery_images !== undefined) {
+      const newGalleryImages = Array.isArray(updates.gallery_images) ? updates.gallery_images : [];
+      const imagesToDelete = oldGalleryImages.filter(oldImg => !newGalleryImages.includes(oldImg));
+      for (const imagePath of imagesToDelete) {
+        const fullPath = imagePath.startsWith('uploads/') ? imagePath : `uploads/destinations/${imagePath}`;
+        await deleteFile(path.join(__dirname, '..', '..', fullPath));
+      }
+    }
+
+    // Delete attraction images that were removed
+    if (updates.attractions !== undefined && Array.isArray(updates.attractions)) {
+      for (let i = 0; i < Math.max(oldAttractions.length, updates.attractions.length); i++) {
+        const oldAttraction = oldAttractions[i] || {};
+        const newAttraction = updates.attractions[i] || {};
+
+        const oldImages = Array.isArray(oldAttraction.images) ? oldAttraction.images.filter(img => typeof img === 'string') : [];
+        const newImages = Array.isArray(newAttraction.images) ? newAttraction.images.filter(img => typeof img === 'string') : [];
+
+        const imagesToDelete = oldImages.filter(oldImg => !newImages.includes(oldImg));
+        for (const imagePath of imagesToDelete) {
+          const fullPath = imagePath.startsWith('uploads/') ? imagePath : `uploads/destinations/${imagePath}`;
+          await deleteFile(path.join(__dirname, '..', '..', fullPath));
+        }
+      }
+    }
+
     // Log the update
     await logUpdate(req.user?.id, 'destination', destination.id, null, updates, req);
 
@@ -480,6 +525,34 @@ const deleteDestination = async (req, res) => {
         success: false,
         message: "Destination not found",
       });
+    }
+
+    // Delete all associated image files before destroying the record
+    const imagesToDelete = [];
+
+    // Add hero image
+    if (destination.hero_image) {
+      imagesToDelete.push(destination.hero_image);
+    }
+
+    // Add gallery images
+    if (Array.isArray(destination.gallery_images)) {
+      imagesToDelete.push(...destination.gallery_images);
+    }
+
+    // Add attraction images
+    if (Array.isArray(destination.attractions)) {
+      destination.attractions.forEach(attraction => {
+        if (Array.isArray(attraction.images)) {
+          imagesToDelete.push(...attraction.images.filter(img => typeof img === 'string'));
+        }
+      });
+    }
+
+    // Delete all image files
+    for (const imagePath of imagesToDelete) {
+      const fullPath = imagePath.startsWith('uploads/') ? imagePath : `uploads/destinations/${imagePath}`;
+      await deleteFile(path.join(__dirname, '..', '..', fullPath));
     }
 
     // Log the deletion before destroying
