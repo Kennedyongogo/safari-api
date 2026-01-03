@@ -606,6 +606,55 @@ const updateGalleryItem = async (req, res) => {
     // Process tags
     const processedTags = processTags(data.tags);
 
+    // Handle file upload if a new file is provided
+    if (req.file) {
+      // Determine file type from uploaded file
+      const isVideo = req.file.mimetype.startsWith("video/");
+      const newType = isVideo ? "video" : "image";
+      
+      // Convert file path to relative path
+      const relativePath = convertToRelativePath(req.file.path);
+      
+      // Update file-related fields
+      data.filePath = relativePath;
+      data.originalName = req.file.originalname;
+      data.mimeType = req.file.mimetype;
+      data.fileSize = req.file.size;
+      data.type = newType;
+      
+      // Clear type-specific fields based on new type
+      if (newType === "image") {
+        data.duration = null;
+        data.thumbnailPath = null;
+        data.width = null;
+        data.height = null;
+      } else if (newType === "video") {
+        data.width = null;
+        data.height = null;
+        data.altText = null;
+        data.duration = null;
+        data.thumbnailPath = null;
+      }
+    } else {
+      // If no new file is uploaded, preserve existing filePath and file-related fields
+      // Don't overwrite filePath if it's not in the update data
+      if (!data.filePath) {
+        delete data.filePath; // Remove from update data to preserve existing value
+      }
+      if (!data.originalName) {
+        delete data.originalName;
+      }
+      if (!data.mimeType) {
+        delete data.mimeType;
+      }
+      if (!data.fileSize) {
+        delete data.fileSize;
+      }
+      if (!data.type) {
+        delete data.type; // Preserve existing type
+      }
+    }
+
     // Store old values for logging
     const oldValues = {
       title: existingItem.title,
