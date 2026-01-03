@@ -43,7 +43,7 @@ const createDestination = async (req, res) => {
     }
 
     // Handle hero image upload
-    let heroImagePath = hero_image;
+    let heroImagePath = null;
     if (req.files && req.files.hero_image && req.files.hero_image[0]) {
       heroImagePath = convertToRelativePath(req.files.hero_image[0].path);
     }
@@ -320,6 +320,14 @@ const updateDestination = async (req, res) => {
       }
       // If hero_image is sent as empty string, keep it as empty (for deletion)
       // If hero_image has a value, keep the existing value
+    }
+
+    // Auto-populate hero image from first gallery image if hero image is empty and gallery images exist
+    if ((!updates.hero_image || updates.hero_image === '') &&
+        updates.gallery_images &&
+        Array.isArray(updates.gallery_images) &&
+        updates.gallery_images.length > 0) {
+      updates.hero_image = updates.gallery_images[0];
     }
 
     // Handle gallery images upload
