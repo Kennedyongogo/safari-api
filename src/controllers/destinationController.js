@@ -322,40 +322,6 @@ const updateDestination = async (req, res) => {
       // If hero_image has a value, keep the existing value
     }
 
-    // Auto-populate hero image from first gallery image if hero image is empty and gallery images exist
-    if ((!updates.hero_image || updates.hero_image === '') &&
-        updates.gallery_images &&
-        Array.isArray(updates.gallery_images) &&
-        updates.gallery_images.length > 0) {
-      updates.hero_image = updates.gallery_images[0];
-    }
-
-    // Handle gallery images upload
-    if (req.files && req.files.gallery_images) {
-      const uploadedGalleryImages = req.files.gallery_images.map((file) =>
-        convertToRelativePath(file.path)
-      );
-      const existingGallery = Array.isArray(destination.gallery_images)
-        ? destination.gallery_images
-        : [];
-      updates.gallery_images = [...existingGallery, ...uploadedGalleryImages];
-    }
-
-    // Handle attraction images upload - new format with indexed fields
-    const collectAttractionImages = () => {
-      const attractionImages = {};
-      if (req.files) {
-        Object.keys(req.files).forEach(key => {
-          if (key.startsWith('attraction_images_')) {
-            const index = parseInt(key.replace('attraction_images_', ''));
-            attractionImages[index] = req.files[key].map(file => convertToRelativePath(file.path));
-          }
-        });
-      }
-      return attractionImages;
-    };
-    const attractionImagesByIndex = collectAttractionImages();
-
     // Parse JSON arrays if they're strings
     const parseJsonArray = (value) => {
       if (!value) return undefined;
@@ -383,6 +349,21 @@ const updateDestination = async (req, res) => {
       return undefined;
     };
 
+    // Handle attraction images upload - new format with indexed fields
+    const collectAttractionImages = () => {
+      const attractionImages = {};
+      if (req.files) {
+        Object.keys(req.files).forEach(key => {
+          if (key.startsWith('attraction_images_')) {
+            const index = parseInt(key.replace('attraction_images_', ''));
+            attractionImages[index] = req.files[key].map(file => convertToRelativePath(file.path));
+          }
+        });
+      }
+      return attractionImages;
+    };
+    const attractionImagesByIndex = collectAttractionImages();
+
     // Process attractions to merge uploaded images
     const processAttractions = (attractionsData) => {
       let parsedAttractions = parseJsonObject(attractionsData);
@@ -402,7 +383,7 @@ const updateDestination = async (req, res) => {
       return parsedAttractions;
     };
 
-    // Apply parsing to array/object fields
+    // Apply parsing to array/object fields FIRST (before handling file uploads)
     const arrayFields = ['wildlife_types', 'featured_species', 'key_highlights', 'category_tags', 'best_visit_months'];
     const objectFields = ['gallery_images'];
 
@@ -418,6 +399,28 @@ const updateDestination = async (req, res) => {
       }
     });
 
+    // Handle gallery images upload - IMPORTANT: Use the parsed gallery_images from frontend (which includes deletions)
+    // Then append new uploaded files to that list
+    if (req.files && req.files.gallery_images) {
+      const uploadedGalleryImages = req.files.gallery_images.map((file) =>
+        convertToRelativePath(file.path)
+      );
+      // Use the parsed gallery_images from frontend (which already has deletions applied)
+      // If not provided, fall back to existing gallery from database
+      const currentGallery = Array.isArray(updates.gallery_images) 
+        ? updates.gallery_images 
+        : (Array.isArray(destination.gallery_images) ? destination.gallery_images : []);
+      updates.gallery_images = [...currentGallery, ...uploadedGalleryImages];
+    }
+
+    // Auto-populate hero image from first gallery image if hero image is empty and gallery images exist
+    if ((!updates.hero_image || updates.hero_image === '') &&
+        updates.gallery_images &&
+        Array.isArray(updates.gallery_images) &&
+        updates.gallery_images.length > 0) {
+      updates.hero_image = updates.gallery_images[0];
+    }
+
     // Handle attractions separately to merge uploaded images
     if (updates.attractions !== undefined) {
       updates.attractions = processAttractions(updates.attractions);
@@ -428,12 +431,14 @@ const updateDestination = async (req, res) => {
       updates.slug = updates.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     }
 
-    await destination.update(updates, { transaction });
-
-    // Handle file deletion for removed images (after successful database update)
+    // Save old values BEFORE updating (needed for file deletion comparison)
     const oldHeroImage = destination.hero_image;
     const oldGalleryImages = Array.isArray(destination.gallery_images) ? destination.gallery_images : [];
     const oldAttractions = Array.isArray(destination.attractions) ? destination.attractions : [];
+
+    await destination.update(updates, { transaction });
+
+    // Handle file deletion for removed images (after successful database update)
 
     // Delete hero image if it was changed or removed
     if (oldHeroImage && (!updates.hero_image || updates.hero_image !== oldHeroImage)) {
