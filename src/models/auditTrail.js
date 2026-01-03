@@ -52,6 +52,7 @@ module.exports = (sequelize) => {
           "package",
           "route_stage",
           "destination",
+          "gallery",
           "system",
           "other"
         ),

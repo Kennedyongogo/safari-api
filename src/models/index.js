@@ -15,6 +15,7 @@ const Lodge = require("./lodge")(sequelize);
 const Package = require("./package")(sequelize);
 const RouteStage = require("./routeStage")(sequelize);
 const Destination = require("./destination")(sequelize);
+const Gallery = require("./gallery")(sequelize);
 
 // Dynamic Form Models
 const Form = require("./form")(sequelize);
@@ -37,6 +38,7 @@ const models = {
   Package,
   RouteStage,
   Destination,
+  Gallery,
   // Dynamic Form Models
   Form,
   FormField,
@@ -55,7 +57,7 @@ const initializeModels = async () => {
     await Inquiry.sync({ force: false, alter: false });
     await Project.sync({ force: false, alter: false });
     await Document.sync({ force: false, alter: false });
-    await AuditTrail.sync({ force: false, alter: false }); // Force recreate table with new enum
+    await AuditTrail.sync({ force: false, alter: false }); // Allow schema changes for enum updates
     await Review.sync({ force: false, alter: false });
     await Blog.sync({ force: false, alter: false });
     await MissionCategory.sync({ force: false, alter: false });
@@ -65,10 +67,11 @@ const initializeModels = async () => {
     await Package.sync({ force: false, alter: false });
     await RouteStage.sync({ force: false, alter: false });
     await Destination.sync({ force: false, alter: false });
+    await Gallery.sync({ force: false, alter: false });
 
     // Dynamic Form Models
     await Form.sync({ force: false, alter: false });
-    await FormField.sync({ force: false, alter: true }); // Allow schema changes for conditional logic
+    await FormField.sync({ force: false, alter: false }); // Allow schema changes for conditional logic
     await FieldOption.sync({ force: false, alter: false });
     await FormSubmission.sync({ force: false, alter: false });
 
@@ -167,6 +170,45 @@ const setupAssociations = () => {
     models.RouteStage.belongsTo(models.Package, {
       foreignKey: "packageId",
       as: "package",
+    });
+
+    // Gallery Associations
+    models.AdminUser.hasMany(models.Gallery, {
+      foreignKey: "created_by",
+      as: "createdGalleryItems",
+    });
+    models.Gallery.belongsTo(models.AdminUser, {
+      foreignKey: "created_by",
+      as: "creator",
+    });
+
+    models.AdminUser.hasMany(models.Gallery, {
+      foreignKey: "updated_by",
+      as: "updatedGalleryItems",
+    });
+    models.Gallery.belongsTo(models.AdminUser, {
+      foreignKey: "updated_by",
+      as: "updater",
+    });
+
+    // Gallery → Package (optional)
+    models.Package.hasMany(models.Gallery, {
+      foreignKey: "packageId",
+      as: "galleryItems",
+    });
+    models.Gallery.belongsTo(models.Package, {
+      foreignKey: "packageId",
+      as: "package",
+    });
+
+    // Gallery → Destination (optional)
+    models.Destination.hasMany(models.Gallery, {
+      foreignKey: "destinationId",
+      as: "galleryItems",
+    });
+    models.Gallery.belongsTo(models.Destination, {
+      foreignKey: "destinationId",
+      as: "destination",
     });
 
     // Dynamic Form Associations

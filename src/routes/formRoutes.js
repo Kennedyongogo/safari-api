@@ -8,6 +8,7 @@ const {
   deleteForm,
   getFormSubmissions,
   updateSubmissionStatus,
+  deleteSubmission,
   getPublicForm,
   getPublicForms,
   submitForm,
@@ -39,6 +40,7 @@ router.post("/cleanup-orphaned-fields", cleanupOrphanedFields);
 // Submission management
 router.get("/:form_id/submissions", getFormSubmissions);
 router.put("/submissions/:id/status", updateSubmissionStatus);
+router.delete("/submissions/:id", deleteSubmission);
 
 router.use(errorHandler);
 

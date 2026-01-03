@@ -29,7 +29,8 @@ module.exports = (sequelize) => {
         "radio",
         "checkbox",
         "checkbox_group",
-        "file"
+        "file",
+        "compound"
       ),
       allowNull: false,
     },

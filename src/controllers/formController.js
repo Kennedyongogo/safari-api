@@ -58,22 +58,17 @@ const getForms = async (req, res) => {
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
 
-    // First get all forms with pagination info
-    const { count, rows: allForms } = await Form.findAndCountAll({
-      order: [["created_at", sortOrder.toUpperCase()]],
-      limit: limitNum,
-      offset,
-    });
+    // Get accurate count of all forms
+    const totalCount = await Form.count();
 
-    // Then get the fields for these specific forms
-    const formIds = allForms.map(form => form.id);
-    const formsWithFields = await Promise.all(
-      allForms.map(async (form) => {
-        const fields = await FormField.findAll({
-          where: {
-            form_id: form.id,
-            is_active: true
-          },
+    // Get forms with their fields using include for proper ordering
+    const formsWithFields = await Form.findAll({
+      include: [
+        {
+          model: FormField,
+          as: "fields",
+          where: { is_active: true },
+          required: false,
           include: [
             {
               model: FieldOption,
@@ -84,23 +79,21 @@ const getForms = async (req, res) => {
             },
           ],
           order: [["display_order", "ASC"]],
-        });
-
-        return {
-          ...form.toJSON(),
-          fields: fields,
-        };
-      })
-    );
+        },
+      ],
+      order: [["created_at", sortOrder.toUpperCase()]],
+      limit: limitNum,
+      offset,
+    });
 
     res.json({
       success: true,
       data: formsWithFields,
       pagination: {
-        total: count,
+        total: totalCount,
         page: pageNum,
         limit: limitNum,
-        totalPages: Math.ceil(count / limitNum),
+        totalPages: Math.ceil(totalCount / limitNum),
       },
     });
   } catch (error) {
@@ -397,6 +390,99 @@ const updateSubmissionStatus = async (req, res) => {
   }
 };
 
+// Admin: Delete submission
+const deleteSubmission = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const submission = await FormSubmission.findByPk(id);
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        message: "Submission not found",
+      });
+    }
+
+    await submission.destroy();
+
+    res.json({
+      success: true,
+      message: "Submission deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting submission:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting submission",
+      error: error.message,
+    });
+  }
+};
+
+// Public: Get all active forms
+const getPublicForms = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, sortOrder = "DESC" } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Get accurate count of active forms
+    const totalCount = await Form.count({
+      where: {
+        is_active: true,
+      },
+    });
+
+    // Get forms with their fields using include for proper ordering
+    const formsWithFields = await Form.findAll({
+      where: {
+        is_active: true,
+      },
+      include: [
+        {
+          model: FormField,
+          as: "fields",
+          where: { is_active: true },
+          required: false,
+          include: [
+            {
+              model: FieldOption,
+              as: "options",
+              where: { is_active: true },
+              required: false,
+              order: [["display_order", "ASC"]],
+            },
+          ],
+          order: [["display_order", "ASC"]],
+        },
+      ],
+      order: [["created_at", sortOrder.toUpperCase()]],
+      limit: limitNum,
+      offset,
+    });
+
+    res.json({
+      success: true,
+      data: formsWithFields,
+      pagination: {
+        total: totalCount,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(totalCount / limitNum),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching public forms:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching forms",
+      error: error.message,
+    });
+  }
+};
+
 // Public: Get form configuration by slug
 const getPublicForm = async (req, res) => {
   try {
@@ -448,47 +534,6 @@ const getPublicForm = async (req, res) => {
   }
 };
 
-// Public: Get all active forms with their fields
-const getPublicForms = async (req, res) => {
-  try {
-    const forms = await Form.findAll({
-      where: {
-        is_active: true,
-      },
-      include: [
-        {
-          model: FormField,
-          as: "fields",
-          where: { is_active: true },
-          required: false,
-          include: [
-            {
-              model: FieldOption,
-              as: "options",
-              where: { is_active: true },
-              required: false,
-              order: [["display_order", "ASC"]],
-            },
-          ],
-          order: [["display_order", "ASC"]],
-        },
-      ],
-      order: [["created_at", "DESC"]],
-    });
-
-    res.json({
-      success: true,
-      data: forms,
-    });
-  } catch (error) {
-    console.error("Error fetching public forms:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching forms",
-      error: error.message,
-    });
-  }
-};
 
 // Public: Submit form
 const submitForm = async (req, res) => {
@@ -542,6 +587,7 @@ module.exports = {
   deleteForm,
   getFormSubmissions,
   updateSubmissionStatus,
+  deleteSubmission,
   getPublicForm,
   getPublicForms,
   submitForm,

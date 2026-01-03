@@ -49,7 +49,13 @@ const createFormField = async (req, res) => {
       grid_size,
       conditional_logic,
       dynamic_options,
+      sub_fields, // For compound fields
     } = req.body;
+
+    // For compound fields, store sub_fields in validation_rules
+    const finalValidationRules = field_type === 'compound' && sub_fields
+      ? { ...validation_rules, sub_fields }
+      : validation_rules;
 
     const field = await FormField.create({
       form_id,
@@ -60,7 +66,7 @@ const createFormField = async (req, res) => {
       help_text,
       default_value,
       is_required,
-      validation_rules,
+      validation_rules: finalValidationRules,
       display_order,
       css_classes,
       grid_size,
@@ -96,6 +102,18 @@ const updateFormField = async (req, res) => {
         success: false,
         message: "Field not found",
       });
+    }
+
+    // Handle sub_fields for compound fields
+    if (updateData.field_type === 'compound' && updateData.sub_fields) {
+      // Merge sub_fields into validation_rules
+      const existingValidationRules = field.validation_rules || {};
+      updateData.validation_rules = {
+        ...existingValidationRules,
+        sub_fields: updateData.sub_fields
+      };
+      // Remove sub_fields from updateData since it's stored in validation_rules
+      delete updateData.sub_fields;
     }
 
     // Only update fields that are provided (not undefined)

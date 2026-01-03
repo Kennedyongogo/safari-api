@@ -66,6 +66,12 @@ const storage = multer.diskStorage({
       file.fieldname === "destination_images"
     ) {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "destinations");
+    } else if (
+      file.fieldname === "gallery_image" ||
+      file.fieldname === "gallery_video" ||
+      file.fieldname === "gallery_media"
+    ) {
+      uploadPath = path.join(__dirname, "..", "..", "uploads", "gallery");
     } else {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "misc");
     }
@@ -99,6 +105,13 @@ const fileFilter = (req, file, cb) => {
     "image/png": ".png",
     "image/gif": ".gif",
     "image/webp": ".webp",
+    // Videos
+    "video/mp4": ".mp4",
+    "video/avi": ".avi",
+    "video/mov": ".mov",
+    "video/wmv": ".wmv",
+    "video/webm": ".webm",
+    "video/mkv": ".mkv",
     // Documents
     "application/pdf": ".pdf",
     "application/msword": ".doc",
@@ -133,7 +146,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 100 * 1024 * 1024, // 100MB limit (increased for videos)
   },
 });
 
@@ -217,6 +230,18 @@ const uploadDestinationImage = upload.single("destination_image");
 // Middleware for multiple destination images
 const uploadDestinationGallery = upload.array("gallery_images", 10);
 
+// Middleware for gallery images
+const uploadGalleryImage = upload.single("gallery_image");
+
+// Middleware for gallery videos
+const uploadGalleryVideo = upload.single("gallery_video");
+
+// Middleware for gallery media (single file - either image or video)
+const uploadGalleryMedia = upload.single("gallery_media");
+
+// Middleware for multiple gallery items
+const uploadGalleryItems = upload.array("gallery_items", 20);
+
 // Error handling middleware for multer
 const handleUploadError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
@@ -267,6 +292,7 @@ const deleteFile = async (filePath) => {
 // Helper function to get file type from mimetype
 const getFileType = (mimetype) => {
   if (mimetype.startsWith("image/")) return "image";
+  if (mimetype.startsWith("video/")) return "video";
   if (mimetype === "application/pdf") return "pdf";
   if (
     mimetype === "application/msword" ||
@@ -316,6 +342,10 @@ module.exports = {
   uploadDestinationImages,
   uploadDestinationImage,
   uploadDestinationGallery,
+  uploadGalleryImage,
+  uploadGalleryVideo,
+  uploadGalleryMedia,
+  uploadGalleryItems,
   handleUploadError,
   deleteFile,
   getFileType,
