@@ -43,21 +43,56 @@ const createBlog = async (req, res) => {
       relatedPostIds,
     } = req.body;
 
-    const featuredImagePath =
-      req.files?.blog_image?.[0] && req.files.blog_image[0].path
-        ? convertToRelativePath(req.files.blog_image[0].path)
-        : featuredImage;
-
-    const authorImagePath =
-      req.files?.author_image?.[0] && req.files.author_image[0].path
-        ? convertToRelativePath(req.files.author_image[0].path)
-        : authorImage;
-
+    // Validate required fields
     if (!slug || !title || !content) {
       return res.status(400).json({
         success: false,
         message: "Please provide slug, title, and content",
       });
+    }
+
+    // Handle featured image upload
+    let featuredImagePath = null;
+    if (req.files && req.files.blog_image && req.files.blog_image[0]) {
+      featuredImagePath = convertToRelativePath(req.files.blog_image[0].path);
+    } else if (featuredImage) {
+      featuredImagePath = featuredImage;
+    }
+
+    // Handle author image upload
+    let authorImagePath = null;
+    if (req.files && req.files.author_image && req.files.author_image[0]) {
+      authorImagePath = convertToRelativePath(req.files.author_image[0].path);
+    } else if (authorImage) {
+      authorImagePath = authorImage;
+    }
+
+    // Parse tags
+    let tagsArray = [];
+    if (tags) {
+      if (Array.isArray(tags)) {
+        tagsArray = tags;
+      } else if (typeof tags === "string") {
+        try {
+          tagsArray = JSON.parse(tags);
+        } catch (e) {
+          tagsArray = tags.split(",").map((t) => t.trim()).filter(Boolean);
+        }
+      }
+    }
+
+    // Parse relatedPostIds
+    let relatedPostIdsArray = [];
+    if (relatedPostIds) {
+      if (Array.isArray(relatedPostIds)) {
+        relatedPostIdsArray = relatedPostIds;
+      } else if (typeof relatedPostIds === "string") {
+        try {
+          relatedPostIdsArray = JSON.parse(relatedPostIds);
+        } catch (e) {
+          relatedPostIdsArray = [];
+        }
+      }
     }
 
     const blog = await Blog.create({
@@ -68,15 +103,9 @@ const createBlog = async (req, res) => {
       featuredImage: featuredImagePath,
       heroAltText,
       category,
-      tags:
-        typeof tags === "string"
-          ? tags
-              .split(",")
-              .map((t) => t.trim())
-              .filter(Boolean)
-          : tags ?? [],
-      featured: featured ?? false,
-      priority: priority ?? 0,
+      tags: tagsArray,
+      featured: featured !== undefined ? (featured === true || featured === "true") : false,
+      priority: priority ? parseInt(priority) : 0,
       authorName,
       authorImage: authorImagePath,
       authorBio,
@@ -93,16 +122,7 @@ const createBlog = async (req, res) => {
       metaDescription,
       ogImage,
       canonicalUrl,
-      relatedPostIds:
-        typeof relatedPostIds === "string"
-          ? (() => {
-              try {
-                return JSON.parse(relatedPostIds);
-              } catch (e) {
-                return [];
-              }
-            })()
-          : relatedPostIds ?? [],
+      relatedPostIds: relatedPostIdsArray,
       created_by: req.user?.id || null,
       updated_by: req.user?.id || null,
     });
@@ -384,33 +404,40 @@ const updateBlog = async (req, res) => {
     const oldFeaturedImage = blog.featuredImage;
     const oldAuthorImage = blog.authorImage;
     
-    const featuredImagePath =
-      req.files?.blog_image?.[0] && req.files.blog_image[0].path
-        ? convertToRelativePath(req.files.blog_image[0].path)
-        : undefined;
-    const authorImagePath =
-      req.files?.author_image?.[0] && req.files.author_image[0].path
-        ? convertToRelativePath(req.files.author_image[0].path)
-        : undefined;
+    // Handle featured image upload
+    let featuredImagePath = undefined;
+    if (req.files && req.files.blog_image && req.files.blog_image[0]) {
+      featuredImagePath = convertToRelativePath(req.files.blog_image[0].path);
+    }
+
+    // Handle author image upload
+    let authorImagePath = undefined;
+    if (req.files && req.files.author_image && req.files.author_image[0]) {
+      authorImagePath = convertToRelativePath(req.files.author_image[0].path);
+    }
 
     const updateData = { ...req.body };
 
-    // Normalize booleans/arrays
+    // Normalize booleans
     if (updateData.featured !== undefined) {
-      updateData.featured =
-        updateData.featured === true || updateData.featured === "true";
+      updateData.featured = updateData.featured === true || updateData.featured === "true";
     }
-    if (updateData.tags && typeof updateData.tags === "string") {
-      try {
-        updateData.tags = JSON.parse(updateData.tags);
-      } catch (e) {
-        updateData.tags = updateData.tags.split(",").map((t) => t.trim());
+
+    // Parse tags
+    if (updateData.tags !== undefined) {
+      if (Array.isArray(updateData.tags)) {
+        updateData.tags = updateData.tags.filter(item => item && item.toString().trim());
+      } else if (typeof updateData.tags === "string") {
+        try {
+          updateData.tags = JSON.parse(updateData.tags).filter(item => item && item.toString().trim());
+        } catch (e) {
+          updateData.tags = updateData.tags.split(",").map((t) => t.trim()).filter(Boolean);
+        }
       }
     }
-    if (
-      updateData.relatedPostIds &&
-      typeof updateData.relatedPostIds === "string"
-    ) {
+
+    // Parse relatedPostIds
+    if (updateData.relatedPostIds !== undefined && typeof updateData.relatedPostIds === "string") {
       try {
         updateData.relatedPostIds = JSON.parse(updateData.relatedPostIds);
       } catch (e) {
@@ -418,32 +445,37 @@ const updateBlog = async (req, res) => {
       }
     }
 
-    // Handle image deletion flags
+    // Handle featured image - check if it's being explicitly set (including empty string for deletion)
     if (updateData.delete_featured_image === "true" || updateData.delete_featured_image === true) {
       updateData.featuredImage = null;
     } else if (featuredImagePath !== undefined) {
+      // New file uploaded
       updateData.featuredImage = featuredImagePath;
     }
+    // If neither condition is true, featuredImage is not in updateData, so existing value is preserved
 
+    // Handle author image - check if it's being explicitly set (including empty string for deletion)
     if (updateData.delete_author_image === "true" || updateData.delete_author_image === true) {
       updateData.authorImage = null;
     } else if (authorImagePath !== undefined) {
+      // New file uploaded
       updateData.authorImage = authorImagePath;
     }
+    // If neither condition is true, authorImage is not in updateData, so existing value is preserved
 
     const oldStatus = blog.status;
 
     await blog.update(updateData);
 
-    // Delete old image files if they were changed or removed
-    if (oldFeaturedImage && (!updateData.featuredImage || updateData.featuredImage !== oldFeaturedImage)) {
+    // Delete old image files if they were changed or removed (after successful database update)
+    if (oldFeaturedImage && updateData.featuredImage !== undefined && updateData.featuredImage !== oldFeaturedImage) {
       const fullPath = oldFeaturedImage.startsWith('uploads/') 
         ? oldFeaturedImage 
         : `uploads/posts/${oldFeaturedImage}`;
       await deleteFile(path.join(__dirname, '..', '..', fullPath));
     }
 
-    if (oldAuthorImage && (!updateData.authorImage || updateData.authorImage !== oldAuthorImage)) {
+    if (oldAuthorImage && updateData.authorImage !== undefined && updateData.authorImage !== oldAuthorImage) {
       const fullPath = oldAuthorImage.startsWith('uploads/') 
         ? oldAuthorImage 
         : `uploads/authors/${oldAuthorImage}`;
@@ -473,6 +505,9 @@ const updateBlog = async (req, res) => {
         );
       }
     }
+
+    // Reload to get updated data
+    await blog.reload();
 
     res.status(200).json({
       success: true,
