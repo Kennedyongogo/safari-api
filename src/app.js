@@ -45,6 +45,7 @@ const stagesUploadPath = path.join(__dirname, "..", "uploads", "stages");
 const destinationsUploadPath = path.join(__dirname, "..", "uploads", "destinations");
 const galleryUploadPath = path.join(__dirname, "..", "uploads", "gallery");
 const miscUploadPath = path.join(__dirname, "..", "uploads", "misc");
+const postsUploadPath = path.join(__dirname, "..", "uploads", "posts");
 
 console.log("📁 Upload Paths:");
 console.log(
@@ -83,6 +84,12 @@ console.log(
   "- Exists:",
   fs.existsSync(miscUploadPath)
 );
+console.log(
+  "  - Posts:",
+  postsUploadPath,
+  "- Exists:",
+  fs.existsSync(postsUploadPath)
+);
 
 // Serve static files
 app.use("/uploads/profiles", express.static(profilesUploadPath));
@@ -94,6 +101,7 @@ app.use("/uploads/stages", express.static(stagesUploadPath));
 app.use("/uploads/destinations", express.static(destinationsUploadPath));
 app.use("/uploads/gallery", express.static(galleryUploadPath));
 app.use("/uploads/misc", express.static(miscUploadPath));
+app.use("/uploads/posts", express.static(postsUploadPath));
 
 // API routes
 console.log("🔗 Registering API routes...");

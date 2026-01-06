@@ -1,6 +1,8 @@
 const { Blog } = require("../models");
 const { convertToRelativePath } = require("../utils/filePath");
 const { Op } = require("sequelize");
+const path = require("path");
+const { deleteFile } = require("../middleware/upload");
 const {
   logCreate,
   logUpdate,
@@ -379,6 +381,9 @@ const updateBlog = async (req, res) => {
     }
 
     const oldValues = blog.toJSON();
+    const oldFeaturedImage = blog.featuredImage;
+    const oldAuthorImage = blog.authorImage;
+    
     const featuredImagePath =
       req.files?.blog_image?.[0] && req.files.blog_image[0].path
         ? convertToRelativePath(req.files.blog_image[0].path)
@@ -413,16 +418,37 @@ const updateBlog = async (req, res) => {
       }
     }
 
-    if (featuredImagePath !== undefined) {
+    // Handle image deletion flags
+    if (updateData.delete_featured_image === "true" || updateData.delete_featured_image === true) {
+      updateData.featuredImage = null;
+    } else if (featuredImagePath !== undefined) {
       updateData.featuredImage = featuredImagePath;
     }
-    if (authorImagePath !== undefined) {
+
+    if (updateData.delete_author_image === "true" || updateData.delete_author_image === true) {
+      updateData.authorImage = null;
+    } else if (authorImagePath !== undefined) {
       updateData.authorImage = authorImagePath;
     }
 
     const oldStatus = blog.status;
 
     await blog.update(updateData);
+
+    // Delete old image files if they were changed or removed
+    if (oldFeaturedImage && (!updateData.featuredImage || updateData.featuredImage !== oldFeaturedImage)) {
+      const fullPath = oldFeaturedImage.startsWith('uploads/') 
+        ? oldFeaturedImage 
+        : `uploads/posts/${oldFeaturedImage}`;
+      await deleteFile(path.join(__dirname, '..', '..', fullPath));
+    }
+
+    if (oldAuthorImage && (!updateData.authorImage || updateData.authorImage !== oldAuthorImage)) {
+      const fullPath = oldAuthorImage.startsWith('uploads/') 
+        ? oldAuthorImage 
+        : `uploads/authors/${oldAuthorImage}`;
+      await deleteFile(path.join(__dirname, '..', '..', fullPath));
+    }
 
     if (req.user) {
       await logUpdate(
