@@ -7,60 +7,25 @@ const {
   logStatusChange,
 } = require("../utils/auditLogger");
 
-// Generate unique member number
-const generateMemberNumber = async () => {
-  const year = new Date().getFullYear();
-  const prefix = `MEM${year}`;
-  
-  // Get the latest member number for this year
-  const latestMember = await Member.findOne({
-    where: {
-      member_number: {
-        [Op.like]: `${prefix}%`,
-      },
-    },
-    order: [["createdAt", "DESC"]],
-  });
-
-  let sequence = 1;
-  if (latestMember && latestMember.member_number) {
-    const lastSequence = parseInt(
-      latestMember.member_number.replace(prefix, "")
-    );
-    if (!isNaN(lastSequence)) {
-      sequence = lastSequence + 1;
-    }
-  }
-
-  return `${prefix}${String(sequence).padStart(4, "0")}`;
-};
-
-// Create member (public registration)
+// Create member (public registration - Agent Application)
 const createMember = async (req, res) => {
   try {
     const {
       full_name,
       email,
       phone,
-      date_of_birth,
-      gender,
-      national_id,
-      physical_address,
-      emergency_contact_name,
-      emergency_contact_phone,
-      membership_type,
-      how_heard_about,
-      reason_for_joining,
-      areas_of_interest,
-      skills_contribution,
-      preferred_communication,
+      company_name,
+      business_type,
+      years_of_experience,
+      motivation,
+      target_market,
     } = req.body;
 
     // Validate required fields
-    if (!full_name || !email || !phone || !membership_type) {
+    if (!full_name || !email || !phone) {
       return res.status(400).json({
         success: false,
-        message: "Please provide all required fields (full_name, email, phone, membership_type)",
+        message: "Please provide all required fields (full_name, email, phone)",
       });
     }
 
@@ -73,27 +38,16 @@ const createMember = async (req, res) => {
       });
     }
 
-    // Generate member number
-    const member_number = await generateMemberNumber();
-
     // Create member
     const member = await Member.create({
       full_name,
       email,
       phone,
-      date_of_birth: date_of_birth || null,
-      gender: gender || null,
-      national_id: national_id || null,
-      physical_address: physical_address || null,
-      emergency_contact_name: emergency_contact_name || null,
-      emergency_contact_phone: emergency_contact_phone || null,
-      membership_type,
-      how_heard_about: how_heard_about || null,
-      reason_for_joining: reason_for_joining || null,
-      areas_of_interest: areas_of_interest || null,
-      skills_contribution: skills_contribution || null,
-      preferred_communication: preferred_communication || null,
-      member_number,
+      company_name: company_name || null,
+      business_type: business_type || null,
+      years_of_experience: years_of_experience || null,
+      motivation: motivation || null,
+      target_market: target_market || null,
       status: "Pending",
     });
 
@@ -102,21 +56,21 @@ const createMember = async (req, res) => {
       null, // Public registration, no user ID
       "member",
       member.id,
-      { full_name, email, membership_type, member_number },
+      { full_name, email, business_type: business_type || "N/A" },
       req,
-      `New member registration: ${full_name} (${email}) - ${member_number}`
+      `New agent application: ${full_name} (${email})`
     );
 
     res.status(201).json({
       success: true,
-      message: "Member registration submitted successfully. Your application is pending review.",
+      message: "Agent application submitted successfully. Your application is pending review.",
       data: member,
     });
   } catch (error) {
     console.error("Error creating member:", error);
     res.status(500).json({
       success: false,
-      message: "Error submitting member registration",
+      message: "Error submitting agent application",
       error: error.message,
     });
   }
@@ -128,7 +82,7 @@ const getAllMembers = async (req, res) => {
     const {
       page = 1,
       limit = 10,
-      membership_type,
+      business_type,
       status,
       search,
       sortBy = "createdAt",
@@ -140,8 +94,8 @@ const getAllMembers = async (req, res) => {
     // Build filter conditions
     const whereClause = {};
 
-    if (membership_type) {
-      whereClause.membership_type = membership_type;
+    if (business_type) {
+      whereClause.business_type = business_type;
     }
 
     if (status) {
@@ -153,7 +107,9 @@ const getAllMembers = async (req, res) => {
         { full_name: { [Op.like]: `%${search}%` } },
         { email: { [Op.like]: `%${search}%` } },
         { phone: { [Op.like]: `%${search}%` } },
-        { member_number: { [Op.like]: `%${search}%` } },
+        { company_name: { [Op.like]: `%${search}%` } },
+        { business_type: { [Op.like]: `%${search}%` } },
+        { target_market: { [Op.like]: `%${search}%` } },
       ];
     }
 
@@ -220,18 +176,11 @@ const updateMember = async (req, res) => {
       full_name,
       email,
       phone,
-      date_of_birth,
-      gender,
-      national_id,
-      physical_address,
-      emergency_contact_name,
-      emergency_contact_phone,
-      membership_type,
-      how_heard_about,
-      reason_for_joining,
-      areas_of_interest,
-      skills_contribution,
-      preferred_communication,
+      company_name,
+      business_type,
+      years_of_experience,
+      motivation,
+      target_market,
       status,
     } = req.body;
 
@@ -249,7 +198,7 @@ const updateMember = async (req, res) => {
       full_name: member.full_name,
       email: member.email,
       phone: member.phone,
-      membership_type: member.membership_type,
+      business_type: member.business_type,
       status: member.status,
     };
 
@@ -258,18 +207,11 @@ const updateMember = async (req, res) => {
     if (full_name) updateData.full_name = full_name;
     if (email) updateData.email = email;
     if (phone) updateData.phone = phone;
-    if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth;
-    if (gender) updateData.gender = gender;
-    if (national_id !== undefined) updateData.national_id = national_id;
-    if (physical_address !== undefined) updateData.physical_address = physical_address;
-    if (emergency_contact_name !== undefined) updateData.emergency_contact_name = emergency_contact_name;
-    if (emergency_contact_phone !== undefined) updateData.emergency_contact_phone = emergency_contact_phone;
-    if (membership_type) updateData.membership_type = membership_type;
-    if (how_heard_about !== undefined) updateData.how_heard_about = how_heard_about;
-    if (reason_for_joining !== undefined) updateData.reason_for_joining = reason_for_joining;
-    if (areas_of_interest !== undefined) updateData.areas_of_interest = areas_of_interest;
-    if (skills_contribution !== undefined) updateData.skills_contribution = skills_contribution;
-    if (preferred_communication) updateData.preferred_communication = preferred_communication;
+    if (company_name !== undefined) updateData.company_name = company_name;
+    if (business_type !== undefined) updateData.business_type = business_type;
+    if (years_of_experience !== undefined) updateData.years_of_experience = years_of_experience;
+    if (motivation !== undefined) updateData.motivation = motivation;
+    if (target_market !== undefined) updateData.target_market = target_market;
     if (status) updateData.status = status;
 
     // Update member
@@ -283,7 +225,7 @@ const updateMember = async (req, res) => {
       oldData,
       updateData,
       req,
-      `Updated member: ${member.full_name} (${member.member_number})`
+      `Updated member: ${member.full_name} (${member.email})`
     );
 
     res.status(200).json({
@@ -373,8 +315,7 @@ const deleteMember = async (req, res) => {
     const memberData = {
       full_name: member.full_name,
       email: member.email,
-      member_number: member.member_number,
-      membership_type: member.membership_type,
+      business_type: member.business_type,
       status: member.status,
     };
 
@@ -387,7 +328,7 @@ const deleteMember = async (req, res) => {
       id,
       memberData,
       req,
-      `Deleted member: ${memberData.full_name} (${memberData.member_number})`
+      `Deleted member: ${memberData.full_name} (${memberData.email})`
     );
 
     res.status(200).json({
@@ -407,12 +348,17 @@ const deleteMember = async (req, res) => {
 // Get member statistics
 const getMemberStats = async (req, res) => {
   try {
-    const statsByMembershipType = await Member.findAll({
+    const statsByBusinessType = await Member.findAll({
       attributes: [
-        "membership_type",
+        "business_type",
         [sequelize.fn("COUNT", sequelize.col("id")), "count"],
       ],
-      group: ["membership_type"],
+      where: {
+        business_type: {
+          [Op.ne]: null,
+        },
+      },
+      group: ["business_type"],
     });
 
     const statsByStatus = await Member.findAll({
@@ -429,7 +375,7 @@ const getMemberStats = async (req, res) => {
       success: true,
       data: {
         total: totalMembers,
-        byMembershipType: statsByMembershipType,
+        byBusinessType: statsByBusinessType,
         byStatus: statsByStatus,
       },
     });

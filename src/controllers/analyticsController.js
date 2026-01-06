@@ -1,240 +1,377 @@
 const {
-  Inquiry,
-  Project,
-  Document,
   AdminUser,
+  Document,
   AuditTrail,
+  Review,
+  Blog,
+  Member,
+  Lodge,
+  Package,
+  RouteStage,
+  Destination,
+  Gallery,
+  Form,
+  FormField,
+  FieldOption,
+  FormSubmission,
   sequelize,
 } = require("../models");
 const { Op } = require("sequelize");
 
-// Define all possible enum values
-const INQUIRY_STATUSES = ["pending", "in_progress", "resolved"];
-const INQUIRY_CATEGORIES = ["volunteer", "education", "mental_health", "community", "donation", "partnership"];
-const PROJECT_STATUSES = ["pending", "in_progress", "on_hold", "completed"];
-const PROJECT_CATEGORIES = ["volunteer", "education", "mental_health", "community", "donation", "partnership"];
-
-// Helper function to ensure all enum values are present
-const normalizeStats = (stats, enumValues, key) => {
-  const statsMap = stats.reduce((acc, item) => {
-    acc[item[key]] = item.count;
-    return acc;
-  }, {});
-
-  return enumValues.map(value => ({
-    [key]: value,
-    count: parseInt(statsMap[value] || 0)
-  }));
-};
 
 // Get comprehensive system analytics
 const getSystemAnalytics = async (req, res) => {
   try {
     console.log("Fetching system analytics...");
 
-    // Inquiries Statistics
-    const totalInquiries = await Inquiry.count();
-    const inquiriesByStatus = await Inquiry.findAll({
-      attributes: [
-        "status",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      group: ["status"],
-      raw: true,
-    });
+    // Calculate date ranges
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const inquiriesByCategory = await Inquiry.findAll({
-      attributes: [
-        "category",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      group: ["category"],
-      raw: true,
-    });
-
-    // Projects Statistics
-    const totalProjects = await Project.count();
-    const projectsByStatus = await Project.findAll({
-      attributes: [
-        "status",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      group: ["status"],
-      raw: true,
-    });
-
-    const projectsByCategory = await Project.findAll({
-      attributes: [
-        "category",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      group: ["category"],
-      raw: true,
-    });
-
-    const projectsByCounty = await Project.findAll({
-      attributes: [
-        "county",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      group: ["county"],
-      order: [[sequelize.literal("count"), "DESC"]],
-      limit: 10,
-      raw: true,
-    });
-
-    const averageProgress = await Project.findOne({
-      attributes: [[sequelize.fn("AVG", sequelize.col("progress")), "average"]],
-      raw: true,
-    });
-
-    // Documents Statistics
-    const totalDocuments = await Document.count();
-    const documentsByType = await Document.findAll({
-      attributes: [
-        "file_type",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      group: ["file_type"],
-      raw: true,
-    });
-
-    // Users Statistics
+    // 1. AdminUser Statistics
     const totalUsers = await AdminUser.count();
-    const activeUsers = await AdminUser.count({
-      where: { isActive: true },
-    });
-
-    const usersByRole = await AdminUser.findAll({
-      attributes: [
-        "role",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
+    const activeUsers = await AdminUser.count({ where: { isActive: true } });
+    const usersByRoleRaw = await AdminUser.findAll({
+      attributes: ["role", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
       group: ["role"],
       raw: true,
     });
-
-    // Audit Trail Statistics (last 7 days activity)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const recentActivities = await AuditTrail.count({
-      where: {
-        createdAt: {
-          [Op.gte]: sevenDaysAgo,
-        },
-      },
+    
+    // Ensure all roles are included even if count is zero
+    const allRoles = ["super-admin", "admin", "regular user"];
+    const usersByRole = allRoles.map(role => {
+      const found = usersByRoleRaw.find(item => item.role === role);
+      return {
+        role: role,
+        count: found ? found.count : "0"
+      };
     });
 
+    // 2. Document Statistics
+    const totalDocuments = await Document.count();
+    const documentsByTypeRaw = await Document.findAll({
+      attributes: ["file_type", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["file_type"],
+      raw: true,
+    });
+    
+    // Ensure all document types are included even if count is zero
+    const allDocumentTypes = ["image", "pdf", "word", "excel", "powerpoint", "text", "other"];
+    const documentsByType = allDocumentTypes.map(fileType => {
+      const found = documentsByTypeRaw.find(item => item.file_type === fileType);
+      return {
+        file_type: fileType,
+        count: found ? found.count : "0"
+      };
+    });
+    
+    const recentDocuments = await Document.count({
+      where: { createdAt: { [Op.gte]: thirtyDaysAgo } },
+    });
+
+    // 3. AuditTrail Statistics
+    const recentActivities = await AuditTrail.count({
+      where: { createdAt: { [Op.gte]: sevenDaysAgo } },
+    });
     const activitiesByAction = await AuditTrail.findAll({
-      attributes: [
-        "action",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      where: {
-        createdAt: {
-          [Op.gte]: sevenDaysAgo,
-        },
-      },
+      attributes: ["action", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      where: { createdAt: { [Op.gte]: sevenDaysAgo } },
       group: ["action"],
       raw: true,
     });
 
-    // Recent trends (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const recentInquiries = await Inquiry.count({
-      where: {
-        createdAt: {
-          [Op.gte]: thirtyDaysAgo,
-        },
-      },
+    // 4. Review Statistics
+    const totalReviews = await Review.count();
+    const reviewsByStatusRaw = await Review.findAll({
+      attributes: ["status", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["status"],
+      raw: true,
+    });
+    
+    // Ensure all review statuses are included even if count is zero
+    const allReviewStatuses = ["pending", "approved", "rejected"];
+    const reviewsByStatus = allReviewStatuses.map(status => {
+      const found = reviewsByStatusRaw.find(item => item.status === status);
+      return {
+        status: status,
+        count: found ? found.count : "0"
+      };
+    });
+    const reviewsByRating = await Review.findAll({
+      attributes: ["rating", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["rating"],
+      order: [["rating", "DESC"]],
+      raw: true,
+    });
+    const recentReviews = await Review.count({
+      where: { createdAt: { [Op.gte]: thirtyDaysAgo } },
+    });
+    const avgRating = await Review.findOne({
+      attributes: [[sequelize.fn("AVG", sequelize.col("rating")), "average"]],
+      raw: true,
     });
 
-    const recentProjects = await Project.count({
-      where: {
-        createdAt: {
-          [Op.gte]: thirtyDaysAgo,
-        },
-      },
+    // 5. Blog Statistics
+    const totalBlogs = await Blog.count();
+    const blogsByStatusRaw = await Blog.findAll({
+      attributes: ["status", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["status"],
+      raw: true,
+    });
+    
+    // Ensure all blog statuses are included even if count is zero
+    const allBlogStatuses = ["draft", "published", "archived"];
+    const blogsByStatus = allBlogStatuses.map(status => {
+      const found = blogsByStatusRaw.find(item => item.status === status);
+      return {
+        status: status,
+        count: found ? found.count : "0"
+      };
+    });
+    const blogsByCategory = await Blog.findAll({
+      attributes: ["category", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      where: { category: { [Op.ne]: null } },
+      group: ["category"],
+      raw: true,
+    });
+    const featuredBlogs = await Blog.count({ where: { featured: true } });
+    const recentBlogs = await Blog.count({
+      where: { createdAt: { [Op.gte]: thirtyDaysAgo } },
+    });
+    const totalBlogViews = await Blog.sum("views");
+    const totalBlogLikes = await Blog.sum("likes");
+
+    // 6. Member (Agent Applications) Statistics
+    const totalMembers = await Member.count();
+    const membersByStatus = await Member.findAll({
+      attributes: ["status", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["status"],
+      raw: true,
+    });
+    const membersByBusinessType = await Member.findAll({
+      attributes: ["business_type", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      where: { business_type: { [Op.ne]: null } },
+      group: ["business_type"],
+      raw: true,
+    });
+    const recentMembers = await Member.count({
+      where: { createdAt: { [Op.gte]: thirtyDaysAgo } },
     });
 
-    const recentDocuments = await Document.count({
-      where: {
-        createdAt: {
-          [Op.gte]: thirtyDaysAgo,
-        },
-      },
+    // 7. Lodge Statistics
+    const totalLodges = await Lodge.count();
+    const lodgesByDestination = await Lodge.findAll({
+      attributes: ["destination", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["destination"],
+      raw: true,
+    });
+    const recentLodges = await Lodge.count({
+      where: { createdAt: { [Op.gte]: thirtyDaysAgo } },
     });
 
-    // Completed projects (last 30 days)
-    const recentCompletedProjects = await Project.count({
-      where: {
-        status: "completed",
-        updatedAt: {
-          [Op.gte]: thirtyDaysAgo,
-        },
-      },
+    // 8. Package Statistics
+    const totalPackages = await Package.count();
+    const packagesByType = await Package.findAll({
+      attributes: ["type", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["type"],
+      raw: true,
+    });
+    const activePackages = await Package.count({ where: { isActive: true } });
+    const avgPackageRating = await Package.findOne({
+      attributes: [[sequelize.fn("AVG", sequelize.col("rating")), "average"]],
+      raw: true,
+    });
+    const recentPackages = await Package.count({
+      where: { createdAt: { [Op.gte]: thirtyDaysAgo } },
     });
 
-    // Resolved inquiries (last 30 days)
-    const recentResolvedInquiries = await Inquiry.count({
-      where: {
-        status: "resolved",
-        updatedAt: {
-          [Op.gte]: thirtyDaysAgo,
-        },
-      },
+    // 9. RouteStage Statistics
+    const totalRouteStages = await RouteStage.count();
+    const recentRouteStages = await RouteStage.count({
+      where: { createdAt: { [Op.gte]: thirtyDaysAgo } },
+    });
+
+    // 10. Destination Statistics
+    const totalDestinations = await Destination.count();
+    const activeDestinations = await Destination.count({ where: { is_active: true } });
+    const destinationsByLocation = await Destination.findAll({
+      attributes: ["location", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["location"],
+      raw: true,
+    });
+    const recentDestinations = await Destination.count({
+      where: { createdAt: { [Op.gte]: thirtyDaysAgo } },
+    });
+
+    // 11. Gallery Statistics
+    const totalGalleryItems = await Gallery.count();
+    const galleryByType = await Gallery.findAll({
+      attributes: ["type", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["type"],
+      raw: true,
+    });
+    const galleryByCategory = await Gallery.findAll({
+      attributes: ["category", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["category"],
+      raw: true,
+    });
+    const featuredGalleryItems = await Gallery.count({ where: { isFeatured: true } });
+    const activeGalleryItems = await Gallery.count({ where: { isActive: true } });
+    const recentGalleryItems = await Gallery.count({
+      where: { createdAt: { [Op.gte]: thirtyDaysAgo } },
+    });
+
+    // 12. Form Statistics
+    const totalForms = await Form.count();
+    const activeForms = await Form.count({ where: { is_active: true } });
+    const recentForms = await Form.count({
+      where: { created_at: { [Op.gte]: thirtyDaysAgo } },
+    });
+
+    // 13. FormField Statistics
+    const totalFormFields = await FormField.count();
+    const recentFormFields = await FormField.count({
+      where: { created_at: { [Op.gte]: thirtyDaysAgo } },
+    });
+
+    // 14. FieldOption Statistics
+    const totalFieldOptions = await FieldOption.count();
+    const recentFieldOptions = await FieldOption.count({
+      where: { created_at: { [Op.gte]: thirtyDaysAgo } },
+    });
+
+    // 15. FormSubmission Statistics
+    const totalSubmissions = await FormSubmission.count();
+    const submissionsByStatus = await FormSubmission.findAll({
+      attributes: ["status", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["status"],
+      raw: true,
+    });
+    const recentSubmissions = await FormSubmission.count({
+      where: { created_at: { [Op.gte]: thirtyDaysAgo } },
     });
 
     res.status(200).json({
       success: true,
       data: {
         overview: {
-          totalInquiries,
-          totalProjects,
-          totalDocuments,
           totalUsers,
           activeUsers,
+          totalDocuments,
+          totalReviews,
+          totalBlogs,
+          totalMembers,
+          totalLodges,
+          totalPackages,
+          totalRouteStages,
+          totalDestinations,
+          totalGalleryItems,
+          totalForms,
+          totalFormFields,
+          totalFieldOptions,
+          totalSubmissions,
         },
-        inquiries: {
-          total: totalInquiries,
-          byStatus: normalizeStats(inquiriesByStatus, INQUIRY_STATUSES, "status"),
-          byCategory: normalizeStats(inquiriesByCategory, INQUIRY_CATEGORIES, "category"),
-          recent: recentInquiries,
-          recentResolved: recentResolvedInquiries,
-        },
-        projects: {
-          total: totalProjects,
-          byStatus: normalizeStats(projectsByStatus, PROJECT_STATUSES, "status"),
-          byCategory: normalizeStats(projectsByCategory, PROJECT_CATEGORIES, "category"),
-          byCounty: projectsByCounty,
-          averageProgress: parseFloat(averageProgress?.average || 0).toFixed(2),
-          recent: recentProjects,
-          recentCompleted: recentCompletedProjects,
+        adminUsers: {
+          total: totalUsers,
+          active: activeUsers,
+          byRole: usersByRole,
         },
         documents: {
           total: totalDocuments,
           byType: documentsByType,
           recent: recentDocuments,
         },
-        users: {
-          total: totalUsers,
-          active: activeUsers,
-          byRole: usersByRole,
-        },
-        activity: {
+        auditTrail: {
           last7Days: recentActivities,
           byAction: activitiesByAction,
         },
+        reviews: {
+          total: totalReviews,
+          byStatus: reviewsByStatus,
+          byRating: reviewsByRating,
+          averageRating: parseFloat(avgRating?.average || 0).toFixed(2),
+          recent: recentReviews,
+        },
+        blogs: {
+          total: totalBlogs,
+          byStatus: blogsByStatus,
+          byCategory: blogsByCategory,
+          featured: featuredBlogs,
+          totalViews: totalBlogViews || 0,
+          totalLikes: totalBlogLikes || 0,
+          recent: recentBlogs,
+        },
+        members: {
+          total: totalMembers,
+          byStatus: membersByStatus,
+          byBusinessType: membersByBusinessType,
+          recent: recentMembers,
+        },
+        lodges: {
+          total: totalLodges,
+          byDestination: lodgesByDestination,
+          recent: recentLodges,
+        },
+        packages: {
+          total: totalPackages,
+          byType: packagesByType,
+          active: activePackages,
+          averageRating: parseFloat(avgPackageRating?.average || 0).toFixed(2),
+          recent: recentPackages,
+        },
+        routeStages: {
+          total: totalRouteStages,
+          recent: recentRouteStages,
+        },
+        destinations: {
+          total: totalDestinations,
+          active: activeDestinations,
+          byLocation: destinationsByLocation,
+          recent: recentDestinations,
+        },
+        gallery: {
+          total: totalGalleryItems,
+          byType: galleryByType,
+          byCategory: galleryByCategory,
+          featured: featuredGalleryItems,
+          active: activeGalleryItems,
+          recent: recentGalleryItems,
+        },
+        forms: {
+          total: totalForms,
+          active: activeForms,
+          recent: recentForms,
+        },
+        formFields: {
+          total: totalFormFields,
+          recent: recentFormFields,
+        },
+        fieldOptions: {
+          total: totalFieldOptions,
+          recent: recentFieldOptions,
+        },
+        formSubmissions: {
+          total: totalSubmissions,
+          byStatus: submissionsByStatus,
+          recent: recentSubmissions,
+        },
         trends: {
           last30Days: {
-            inquiries: recentInquiries,
-            projects: recentProjects,
             documents: recentDocuments,
-            completedProjects: recentCompletedProjects,
-            resolvedInquiries: recentResolvedInquiries,
+            reviews: recentReviews,
+            blogs: recentBlogs,
+            members: recentMembers,
+            lodges: recentLodges,
+            packages: recentPackages,
+            routeStages: recentRouteStages,
+            destinations: recentDestinations,
+            galleryItems: recentGalleryItems,
+            forms: recentForms,
+            formFields: recentFormFields,
+            fieldOptions: recentFieldOptions,
+            submissions: recentSubmissions,
           },
         },
       },
@@ -249,178 +386,6 @@ const getSystemAnalytics = async (req, res) => {
   }
 };
 
-// Get inquiry-specific analytics with time range
-const getInquiryAnalytics = async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-
-    console.log("Fetching inquiry analytics...");
-
-    const whereClause = {};
-    if (startDate && endDate) {
-      whereClause.createdAt = {
-        [Op.between]: [new Date(startDate), new Date(endDate)],
-      };
-    }
-
-    const totalInquiries = await Inquiry.count({ where: whereClause });
-
-    const byStatus = await Inquiry.findAll({
-      attributes: [
-        "status",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      where: whereClause,
-      group: ["status"],
-      raw: true,
-    });
-
-    const byCategory = await Inquiry.findAll({
-      attributes: [
-        "category",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      where: whereClause,
-      group: ["category"],
-      raw: true,
-    });
-
-    // Response time analysis (average time to resolve)
-    // Calculate resolution time on the application side to be database-agnostic
-    const resolvedInquiries = await Inquiry.findAll({
-      attributes: ["createdAt", "updatedAt"],
-      where: {
-        ...whereClause,
-        status: "resolved",
-      },
-      raw: true,
-    });
-
-    let avgResolutionTimeHours = 0;
-    if (resolvedInquiries.length > 0) {
-      const totalHours = resolvedInquiries.reduce((sum, inquiry) => {
-        const created = new Date(inquiry.createdAt);
-        const updated = new Date(inquiry.updatedAt);
-        const hours = (updated - created) / (1000 * 60 * 60); // Convert milliseconds to hours
-        return sum + hours;
-      }, 0);
-      avgResolutionTimeHours = totalHours / resolvedInquiries.length;
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        total: totalInquiries,
-        byStatus: normalizeStats(byStatus, INQUIRY_STATUSES, "status"),
-        byCategory: normalizeStats(byCategory, INQUIRY_CATEGORIES, "category"),
-        averageResolutionTimeHours: parseFloat(avgResolutionTimeHours).toFixed(2),
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching inquiry analytics:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching inquiry analytics",
-      error: error.message,
-    });
-  }
-};
-
-// Get project-specific analytics with time range
-const getProjectAnalytics = async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-
-    console.log("Fetching project analytics...");
-
-    const whereClause = {};
-    if (startDate && endDate) {
-      whereClause.createdAt = {
-        [Op.between]: [new Date(startDate), new Date(endDate)],
-      };
-    }
-
-    const totalProjects = await Project.count({ where: whereClause });
-
-    const byStatus = await Project.findAll({
-      attributes: [
-        "status",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      where: whereClause,
-      group: ["status"],
-      raw: true,
-    });
-
-    const byCategory = await Project.findAll({
-      attributes: [
-        "category",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      where: whereClause,
-      group: ["category"],
-      raw: true,
-    });
-
-    const byCounty = await Project.findAll({
-      attributes: [
-        "county",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      where: whereClause,
-      group: ["county"],
-      order: [[sequelize.literal("count"), "DESC"]],
-      raw: true,
-    });
-
-    const progressStats = await Project.findOne({
-      attributes: [
-        [sequelize.fn("AVG", sequelize.col("progress")), "average"],
-        [sequelize.fn("MIN", sequelize.col("progress")), "minimum"],
-        [sequelize.fn("MAX", sequelize.col("progress")), "maximum"],
-      ],
-      where: whereClause,
-      raw: true,
-    });
-
-    // Project completion rate
-    const completedProjects = await Project.count({
-      where: {
-        ...whereClause,
-        status: "completed",
-      },
-    });
-
-    const completionRate =
-      totalProjects > 0
-        ? ((completedProjects / totalProjects) * 100).toFixed(2)
-        : 0;
-
-    res.status(200).json({
-      success: true,
-      data: {
-        total: totalProjects,
-        byStatus: normalizeStats(byStatus, PROJECT_STATUSES, "status"),
-        byCategory: normalizeStats(byCategory, PROJECT_CATEGORIES, "category"),
-        byCounty,
-        progress: {
-          average: parseFloat(progressStats?.average || 0).toFixed(2),
-          minimum: progressStats?.minimum || 0,
-          maximum: progressStats?.maximum || 0,
-        },
-        completionRate: `${completionRate}%`,
-        completedProjects,
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching project analytics:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching project analytics",
-      error: error.message,
-    });
-  }
-};
 
 // Get monthly trends for charts
 const getMonthlyTrends = async (req, res) => {
@@ -432,42 +397,15 @@ const getMonthlyTrends = async (req, res) => {
     const monthsAgo = new Date();
     monthsAgo.setMonth(monthsAgo.getMonth() - parseInt(months));
 
-    // Fetch all records and group on application side to be database-agnostic
-    const inquiries = await Inquiry.findAll({
-      attributes: ["createdAt"],
-      where: {
-        createdAt: {
-          [Op.gte]: monthsAgo,
-        },
-      },
-      raw: true,
-    });
-
-    const projects = await Project.findAll({
-      attributes: ["createdAt"],
-      where: {
-        createdAt: {
-          [Op.gte]: monthsAgo,
-        },
-      },
-      raw: true,
-    });
-
-    const documents = await Document.findAll({
-      attributes: ["createdAt"],
-      where: {
-        createdAt: {
-          [Op.gte]: monthsAgo,
-        },
-      },
-      raw: true,
-    });
-
     // Helper function to group by month
     const groupByMonth = (records) => {
       const grouped = {};
       records.forEach((record) => {
-        const date = new Date(record.createdAt);
+        // Handle both createdAt (Sequelize) and created_at (raw DB) formats
+        const dateValue = record.createdAt || record.created_at;
+        if (!dateValue) return;
+        const date = new Date(dateValue);
+        if (isNaN(date.getTime())) return; // Skip invalid dates
         const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         grouped[month] = (grouped[month] || 0) + 1;
       });
@@ -476,12 +414,54 @@ const getMonthlyTrends = async (req, res) => {
         .sort((a, b) => a.month.localeCompare(b.month));
     };
 
+    // Fetch all models for monthly trends
+    // Note: Form models use createdAt in Sequelize but created_at in DB
+    const [
+      documents,
+      reviews,
+      blogs,
+      members,
+      lodges,
+      packages,
+      routeStages,
+      destinations,
+      galleryItems,
+      forms,
+      formFields,
+      fieldOptions,
+      submissions,
+    ] = await Promise.all([
+      Document.findAll({ attributes: ["createdAt"], where: { createdAt: { [Op.gte]: monthsAgo } }, raw: true }),
+      Review.findAll({ attributes: ["createdAt"], where: { createdAt: { [Op.gte]: monthsAgo } }, raw: true }),
+      Blog.findAll({ attributes: ["createdAt"], where: { createdAt: { [Op.gte]: monthsAgo } }, raw: true }),
+      Member.findAll({ attributes: ["createdAt"], where: { createdAt: { [Op.gte]: monthsAgo } }, raw: true }),
+      Lodge.findAll({ attributes: ["createdAt"], where: { createdAt: { [Op.gte]: monthsAgo } }, raw: true }),
+      Package.findAll({ attributes: ["createdAt"], where: { createdAt: { [Op.gte]: monthsAgo } }, raw: true }),
+      RouteStage.findAll({ attributes: ["createdAt"], where: { createdAt: { [Op.gte]: monthsAgo } }, raw: true }),
+      Destination.findAll({ attributes: ["createdAt"], where: { createdAt: { [Op.gte]: monthsAgo } }, raw: true }),
+      Gallery.findAll({ attributes: ["createdAt"], where: { createdAt: { [Op.gte]: monthsAgo } }, raw: true }),
+      Form.findAll({ attributes: [[sequelize.col("created_at"), "createdAt"]], where: { created_at: { [Op.gte]: monthsAgo } }, raw: true }),
+      FormField.findAll({ attributes: [[sequelize.col("created_at"), "createdAt"]], where: { created_at: { [Op.gte]: monthsAgo } }, raw: true }),
+      FieldOption.findAll({ attributes: [[sequelize.col("created_at"), "createdAt"]], where: { created_at: { [Op.gte]: monthsAgo } }, raw: true }),
+      FormSubmission.findAll({ attributes: [[sequelize.col("created_at"), "createdAt"]], where: { created_at: { [Op.gte]: monthsAgo } }, raw: true }),
+    ]);
+
     res.status(200).json({
       success: true,
       data: {
-        inquiries: groupByMonth(inquiries),
-        projects: groupByMonth(projects),
         documents: groupByMonth(documents),
+        reviews: groupByMonth(reviews),
+        blogs: groupByMonth(blogs),
+        members: groupByMonth(members),
+        lodges: groupByMonth(lodges),
+        packages: groupByMonth(packages),
+        routeStages: groupByMonth(routeStages),
+        destinations: groupByMonth(destinations),
+        galleryItems: groupByMonth(galleryItems),
+        forms: groupByMonth(forms),
+        formFields: groupByMonth(formFields),
+        fieldOptions: groupByMonth(fieldOptions),
+        submissions: groupByMonth(submissions),
       },
     });
   } catch (error) {
@@ -496,8 +476,6 @@ const getMonthlyTrends = async (req, res) => {
 
 module.exports = {
   getSystemAnalytics,
-  getInquiryAnalytics,
-  getProjectAnalytics,
   getMonthlyTrends,
 };
 

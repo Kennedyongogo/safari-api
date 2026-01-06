@@ -12,17 +12,12 @@ const { initializeChatbot } = require("./controllers/chatbotController");
 
 // Import all routes
 const adminUserRoutes = require("./routes/adminUserRoutes");
-const inquiryRoutes = require("./routes/inquiryRoutes");
-const projectRoutes = require("./routes/projectRoutes");
 const documentRoutes = require("./routes/documentRoutes");
 const auditTrailRoutes = require("./routes/auditTrailRoutes");
-const reportRoutes = require("./routes/reportRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const blogRoutes = require("./routes/blogRoutes");
-const missionCategoryRoutes = require("./routes/missionCategoryRoutes");
-const postRoutes = require("./routes/postRoutes");
 const memberRoutes = require("./routes/memberRoutes");
 const lodgeRoutes = require("./routes/lodgeRoutes");
 const packageRoutes = require("./routes/packageRoutes");
@@ -43,15 +38,6 @@ app.use(cors());
 // Static file serving
 const profilesUploadPath = path.join(__dirname, "..", "uploads", "profiles");
 const documentsUploadPath = path.join(__dirname, "..", "uploads", "documents");
-const projectsUploadPath = path.join(__dirname, "..", "uploads", "projects");
-const inquiriesUploadPath = path.join(__dirname, "..", "uploads", "inquiries");
-const missionCategoriesUploadPath = path.join(
-  __dirname,
-  "..",
-  "uploads",
-  "mission-categories"
-);
-const postsUploadPath = path.join(__dirname, "..", "uploads", "posts");
 const authorsUploadPath = path.join(__dirname, "..", "uploads", "authors");
 const lodgesUploadPath = path.join(__dirname, "..", "uploads", "lodges");
 const packagesUploadPath = path.join(__dirname, "..", "uploads", "packages");
@@ -72,30 +58,6 @@ console.log(
   documentsUploadPath,
   "- Exists:",
   fs.existsSync(documentsUploadPath)
-);
-console.log(
-  "  - Projects:",
-  projectsUploadPath,
-  "- Exists:",
-  fs.existsSync(projectsUploadPath)
-);
-console.log(
-  "  - Inquiries:",
-  inquiriesUploadPath,
-  "- Exists:",
-  fs.existsSync(inquiriesUploadPath)
-);
-console.log(
-  "  - Mission Categories:",
-  missionCategoriesUploadPath,
-  "- Exists:",
-  fs.existsSync(missionCategoriesUploadPath)
-);
-console.log(
-  "  - Posts:",
-  postsUploadPath,
-  "- Exists:",
-  fs.existsSync(postsUploadPath)
 );
 console.log(
   "  - Authors:",
@@ -125,13 +87,6 @@ console.log(
 // Serve static files
 app.use("/uploads/profiles", express.static(profilesUploadPath));
 app.use("/uploads/documents", express.static(documentsUploadPath));
-app.use("/uploads/projects", express.static(projectsUploadPath));
-app.use("/uploads/inquiries", express.static(inquiriesUploadPath));
-app.use(
-  "/uploads/mission-categories",
-  express.static(missionCategoriesUploadPath)
-);
-app.use("/uploads/posts", express.static(postsUploadPath));
 app.use("/uploads/authors", express.static(authorsUploadPath));
 app.use("/uploads/lodges", express.static(lodgesUploadPath));
 app.use("/uploads/packages", express.static(packagesUploadPath));
@@ -143,16 +98,6 @@ app.use("/uploads/misc", express.static(miscUploadPath));
 // API routes
 console.log("🔗 Registering API routes...");
 
-// Public routes (no authentication required)
-const {
-  getPublicProjects,
-  getPublicProjectById,
-} = require("./controllers/projectController");
-app.get("/api/public-projects", getPublicProjects);
-console.log("✅ /api/public-projects route registered (public)");
-app.get("/api/public-projects/:id", getPublicProjectById);
-console.log("✅ /api/public-projects/:id route registered (public)");
-
 app.use("/api/reviews", reviewRoutes);
 console.log("✅ /api/reviews route registered");
 
@@ -162,32 +107,17 @@ console.log("✅ /api/blogs route registered");
 app.use("/api/admin-users", adminUserRoutes);
 console.log("✅ /api/admin-users route registered");
 
-app.use("/api/inquiries", inquiryRoutes);
-console.log("✅ /api/inquiries route registered");
-
-app.use("/api/projects", projectRoutes);
-console.log("✅ /api/projects route registered");
-
 app.use("/api/documents", documentRoutes);
 console.log("✅ /api/documents route registered");
 
 app.use("/api/audit-trail", auditTrailRoutes);
 console.log("✅ /api/audit-trail route registered");
 
-app.use("/api/reports", reportRoutes);
-console.log("✅ /api/reports route registered");
-
 app.use("/api/analytics", analyticsRoutes);
 console.log("✅ /api/analytics route registered");
 
 app.use("/api/chatbot", chatbotRoutes);
 console.log("✅ /api/chatbot route registered");
-
-app.use("/api/mission-categories", missionCategoryRoutes);
-console.log("✅ /api/mission-categories route registered");
-
-app.use("/api/posts", postRoutes);
-console.log("✅ /api/posts route registered");
 
 app.use("/api/members", memberRoutes);
 console.log("✅ /api/members route registered");
@@ -318,10 +248,6 @@ const createUploadDirectories = () => {
     path.join(__dirname, "..", "uploads"),
     path.join(__dirname, "..", "uploads", "profiles"),
     path.join(__dirname, "..", "uploads", "documents"),
-    path.join(__dirname, "..", "uploads", "projects"),
-    path.join(__dirname, "..", "uploads", "inquiries"),
-    path.join(__dirname, "..", "uploads", "mission-categories"),
-    path.join(__dirname, "..", "uploads", "posts"),
     path.join(__dirname, "..", "uploads", "lodges"),
     path.join(__dirname, "..", "uploads", "stages"),
     path.join(__dirname, "..", "uploads", "misc"),

@@ -4,6 +4,7 @@ module.exports = (sequelize) => {
   const Member = sequelize.define(
     "Member",
     {
+      // Step 1: Personal Information (all required)
       id: {
         type: DataTypes.UUID,
         primaryKey: true,
@@ -11,7 +12,11 @@ module.exports = (sequelize) => {
       },
       full_name: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: false, // captured as "Full Name"
+        validate: {
+          notEmpty: true,
+          len: [2, 150],
+        },
       },
       email: {
         type: DataTypes.STRING,
@@ -24,64 +29,50 @@ module.exports = (sequelize) => {
       phone: {
         type: DataTypes.STRING,
         allowNull: false,
+        validate: {
+          notEmpty: true,
+          len: [5, 40],
+        },
       },
-      date_of_birth: {
-        type: DataTypes.DATE,
-        allowNull: true,
-      },
-      gender: {
-        type: DataTypes.ENUM("Male", "Female", "Other", "Prefer not to say"),
-        allowNull: true,
-      },
-      national_id: {
+
+      // Step 2: Business Information (optional)
+      company_name: {
         type: DataTypes.STRING,
         allowNull: true,
+        validate: {
+          len: [0, 150],
+        },
       },
-      physical_address: {
+      business_type: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        validate: {
+          len: [0, 100],
+        },
+      },
+      years_of_experience: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        validate: {
+          min: 0,
+          max: 120,
+        },
+      },
+
+      // Step 3: Additional Details
+      motivation: {
+        // "Why do you want to become an agent?"
         type: DataTypes.TEXT,
         allowNull: true,
       },
-      emergency_contact_name: {
+      target_market: {
         type: DataTypes.STRING,
         allowNull: true,
       },
-      emergency_contact_phone: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
-      membership_type: {
-        type: DataTypes.ENUM("Regular", "Lifetime", "Student", "Corporate"),
-        allowNull: false,
-        defaultValue: "Regular",
-      },
-      how_heard_about: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
-      reason_for_joining: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-      },
-      areas_of_interest: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-      },
-      skills_contribution: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-      },
-      preferred_communication: {
-        type: DataTypes.ENUM("Email", "Phone", "SMS", "WhatsApp", "Postal Mail"),
-        allowNull: true,
-      },
+
       status: {
-        type: DataTypes.ENUM("Pending", "Active", "Inactive", "Rejected"),
+        type: DataTypes.ENUM("Pending", "Approved", "Rejected"),
         defaultValue: "Pending",
-      },
-      member_number: {
-        type: DataTypes.STRING,
-        allowNull: true,
-        unique: true,
       },
     },
     {
@@ -92,4 +83,3 @@ module.exports = (sequelize) => {
 
   return Member;
 };
-

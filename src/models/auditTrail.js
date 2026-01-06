@@ -40,13 +40,9 @@ module.exports = (sequelize) => {
       resource_type: {
         type: DataTypes.ENUM(
           "admin_user",
-          "project",
-          "inquiry",
           "document",
           "testimony",
           "review",
-          "mission_category",
-          "post",
           "blog",
           "member",
           "package",

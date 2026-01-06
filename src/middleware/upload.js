@@ -8,13 +8,7 @@ const storage = multer.diskStorage({
     // Determine upload directory based on file type
     let uploadPath;
 
-    if (
-      file.fieldname === "project_image" ||
-      file.fieldname === "project_images" ||
-      file.fieldname === "update_images"
-    ) {
-      uploadPath = path.join(__dirname, "..", "..", "uploads", "projects");
-    } else if (file.fieldname === "profile_image") {
+    if (file.fieldname === "profile_image") {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "profiles");
     } else if (
       file.fieldname === "document" ||
@@ -22,25 +16,12 @@ const storage = multer.diskStorage({
       file.fieldname === "file"
     ) {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "documents");
-    } else if (file.fieldname === "inquiry_attachment") {
-      uploadPath = path.join(__dirname, "..", "..", "uploads", "inquiries");
     } else if (
       file.fieldname === "image" ||
-      file.fieldname === "images" ||
-      file.fieldname === "mission_category_image" ||
-      file.fieldname === "mission_category_images"
+      file.fieldname === "images"
     ) {
-      uploadPath = path.join(
-        __dirname,
-        "..",
-        "..",
-        "uploads",
-        "mission-categories"
-      );
+      uploadPath = path.join(__dirname, "..", "..", "uploads", "misc");
     } else if (
-      file.fieldname === "post_image" ||
-      file.fieldname === "post_images" ||
-      file.fieldname === "post_banner" ||
       file.fieldname === "blog_image" ||
       file.fieldname === "blog_featured_image"
     ) {
@@ -161,33 +142,6 @@ const uploadFile = upload.single("file");
 
 // Middleware for multiple documents upload
 const uploadDocuments = upload.array("documents", 10); // Max 10 files
-
-// Middleware for project images
-const uploadProjectImage = upload.single("project_image");
-
-// Middleware for multiple project images with text fields
-const uploadProjectImages = upload.any();
-
-// Middleware for inquiry attachments
-const uploadInquiryAttachment = upload.single("inquiry_attachment");
-
-// Middleware for mission category image (single)
-const uploadMissionCategoryImage = upload.single("image");
-
-// Middleware for mission category images (multiple)
-const uploadMissionCategoryImages = upload.array("images", 10);
-
-// Middleware for post images (multiple, for news)
-const uploadPostImages = upload.array("post_images", 10);
-
-// Middleware for post banner (single, for events)
-const uploadPostBanner = upload.single("post_banner");
-
-// Middleware for posts (flexible - handles both images and banner)
-const uploadPostFiles = upload.fields([
-  { name: "post_images", maxCount: 10 },
-  { name: "post_banner", maxCount: 1 },
-]);
 
 // Middleware for blog featured image
 const uploadBlogImage = upload.single("blog_image");
@@ -324,14 +278,6 @@ module.exports = {
   uploadDocument,
   uploadFile,
   uploadDocuments,
-  uploadProjectImage,
-  uploadProjectImages,
-  uploadInquiryAttachment,
-  uploadMissionCategoryImage,
-  uploadMissionCategoryImages,
-  uploadPostImages,
-  uploadPostBanner,
-  uploadPostFiles,
   uploadBlogImage,
   uploadBlogAssets,
   uploadMixed,

@@ -1,4 +1,4 @@
-const { AdminUser, Project, Inquiry, Document } = require("../models");
+const { AdminUser, Document } = require("../models");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const config = require("../config/config");
@@ -633,48 +633,7 @@ const getDashboardStats = async (req, res) => {
     // Get counts
     const totalAdmins = await AdminUser.count();
     const activeAdmins = await AdminUser.count({ where: { isActive: true } });
-    
-    const totalProjects = await Project.count();
-    const projectsByStatus = await Project.findAll({
-      attributes: [
-        "status",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      group: ["status"],
-      raw: true,
-    });
-
-    const totalInquiries = await Inquiry.count();
-    const inquiriesByCategory = await Inquiry.findAll({
-      attributes: [
-        "category",
-        [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      ],
-      group: ["category"],
-      raw: true,
-    });
-
     const totalDocuments = await Document.count();
-
-    // Get recent activities
-    const recentProjects = await Project.findAll({
-      limit: 5,
-      order: [["createdAt", "DESC"]],
-      attributes: ["id", "name", "status", "category", "createdAt"],
-      include: [
-        {
-          model: AdminUser,
-          as: "creator",
-          attributes: ["full_name"],
-        },
-      ],
-    });
-
-    const recentInquiries = await Inquiry.findAll({
-      limit: 5,
-      order: [["createdAt", "DESC"]],
-      attributes: ["id", "full_name", "email", "category", "createdAt"],
-    });
 
     res.status(200).json({
       success: true,
@@ -682,15 +641,7 @@ const getDashboardStats = async (req, res) => {
         stats: {
           totalAdmins,
           activeAdmins,
-          totalProjects,
-          totalInquiries,
           totalDocuments,
-        },
-        projectsByStatus,
-        inquiriesByCategory,
-        recentActivities: {
-          recentProjects,
-          recentInquiries,
         },
       },
     });
