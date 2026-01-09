@@ -483,7 +483,6 @@ const getBlogHTML = async (req, res) => {
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:site" content="@akirasafaris" />
   <meta name="twitter:url" content="${currentUrl}" />
   <meta name="twitter:title" content="${escapeHtml(ogTitle)}" />
   <meta name="twitter:description" content="${escapeHtml(ogDescription)}" />
