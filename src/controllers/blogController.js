@@ -387,6 +387,134 @@ const incrementBlogLike = async (req, res) => {
   }
 };
 
+// Serve pre-rendered HTML with meta tags for social media crawlers
+const getBlogHTML = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const blog = await Blog.findOne({
+      where: { slug, status: "published" },
+      attributes: {
+        exclude: ["isDeleted", "deletedAt", "updatedBy", "createdBy"],
+      },
+    });
+
+    if (!blog) {
+      return res.status(404).send("Blog post not found");
+    }
+
+    // Get origin from headers (considering proxy)
+    const protocol = req.get("x-forwarded-proto") || req.protocol || "https";
+    const host = req.get("x-forwarded-host") || req.get("host") || "www.akirasafaris.com";
+    const origin = `${protocol}://${host}`;
+    const currentUrl = `${origin}/blog/${slug}`;
+
+    // Build meta data - prioritize featured image (what user wants to share most)
+    const ogTitle = blog.metaTitle || blog.title || "Akira Safaris Blog";
+    
+    // Build description from CONTENT field (what user wants to share)
+    // Priority: metaDescription > excerpt > content (extracted from blog.content field)
+    let ogDescription = blog.metaDescription || "";
+    if (!ogDescription && blog.excerpt) {
+      ogDescription = blog.excerpt.trim();
+    }
+    // Extract from blog.content field - the actual blog post content
+    if (!ogDescription && blog.content) {
+      // Strip HTML tags and get meaningful text from content
+      const textContent = blog.content.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+      // Take first 300 characters, but try to end at a sentence for better display
+      ogDescription = textContent.substring(0, 300);
+      const lastPeriod = ogDescription.lastIndexOf(".");
+      if (lastPeriod > 200) {
+        ogDescription = ogDescription.substring(0, lastPeriod + 1);
+      } else if (textContent.length > 300) {
+        ogDescription += "...";
+      }
+    }
+
+    // Build absolute image URL - PRIORITIZE FEATURED IMAGE (what user wants MOST)
+    // Use blog.featuredImage field first, then ogImage as fallback
+    let ogImage = null;
+    const imagePath = blog.featuredImage || blog.ogImage;
+    if (imagePath) {
+      if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+        ogImage = imagePath;
+      } else {
+        const normalizedPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
+        ogImage = `${origin}${normalizedPath}`;
+      }
+    }
+    
+    // Fallback to placeholder if no image found
+    if (!ogImage) {
+      ogImage = `${origin}/placeholder.jpg`;
+    }
+
+    // Clean HTML entities
+    const escapeHtml = (text) => {
+      if (!text) return "";
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    };
+
+    // Generate HTML with meta tags
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(ogTitle)}</title>
+  <meta name="description" content="${escapeHtml(ogDescription)}" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="${currentUrl}" />
+  <meta property="og:title" content="${escapeHtml(ogTitle)}" />
+  <meta property="og:description" content="${escapeHtml(ogDescription)}" />
+  <meta property="og:image" content="${ogImage}" />
+  <meta property="og:image:secure_url" content="${ogImage.replace("http://", "https://")}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:site_name" content="Akira Safaris" />
+  <meta property="og:locale" content="en_US" />
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="${currentUrl}" />
+  <meta name="twitter:title" content="${escapeHtml(ogTitle)}" />
+  <meta name="twitter:description" content="${escapeHtml(ogDescription)}" />
+  <meta name="twitter:image" content="${ogImage}" />
+  
+  <!-- Article specific -->
+  ${blog.authorName ? `<meta property="article:author" content="${escapeHtml(blog.authorName)}" />` : ""}
+  ${blog.publishDate ? `<meta property="article:published_time" content="${new Date(blog.publishDate).toISOString()}" />` : ""}
+  ${blog.category ? `<meta property="article:section" content="${escapeHtml(blog.category)}" />` : ""}
+  ${blog.tags && Array.isArray(blog.tags) && blog.tags.length > 0
+      ? blog.tags.map(tag => `<meta property="article:tag" content="${escapeHtml(tag)}" />`).join("\n  ")
+      : ""}
+  
+  <link rel="canonical" href="${currentUrl}" />
+  <meta http-equiv="refresh" content="0; url=${currentUrl}" />
+</head>
+<body>
+  <h1>${escapeHtml(ogTitle)}</h1>
+  <p>${escapeHtml(ogDescription)}</p>
+  <p>If you are not redirected automatically, <a href="${currentUrl}">click here</a>.</p>
+  <script>window.location.href = "${currentUrl}";</script>
+</body>
+</html>`;
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  } catch (error) {
+    console.error("Error generating blog HTML:", error);
+    res.status(500).send("Error generating blog page");
+  }
+};
+
 // Update blog
 const updateBlog = async (req, res) => {
   try {
@@ -628,6 +756,7 @@ module.exports = {
   getBlogById,
   getPublicBlogs,
   getPublicBlogBySlug,
+  getBlogHTML,
   incrementBlogView,
   incrementBlogLike,
   updateBlog,

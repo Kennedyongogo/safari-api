@@ -6,6 +6,7 @@ const {
   getBlogById,
   getPublicBlogs,
   getPublicBlogBySlug,
+  getBlogHTML,
   incrementBlogView,
   incrementBlogLike,
   updateBlog,
@@ -22,6 +23,7 @@ const { errorHandler } = require("../middleware/errorHandler");
 // Public routes
 router.get("/public", getPublicBlogs);
 router.get("/public/:slug", getPublicBlogBySlug);
+router.get("/html/:slug", getBlogHTML); // HTML endpoint for social media crawlers
 router.post("/public/:slug/view", incrementBlogView);
 router.post("/public/:slug/like", incrementBlogLike);
 
