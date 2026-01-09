@@ -403,8 +403,22 @@ const getBlogHTML = async (req, res) => {
     }
 
     // Get origin from headers (considering proxy)
-    const protocol = req.get("x-forwarded-proto") || req.protocol || "https";
-    const host = req.get("x-forwarded-host") || req.get("host") || "www.akirasafaris.com";
+    // Use forwarded headers first, then request headers, then defaults
+    // Default to HTTPS for production sites
+    let protocol = req.get("x-forwarded-proto");
+    if (!protocol || (protocol !== "http" && protocol !== "https")) {
+      protocol = req.secure ? "https" : "http";
+      // Default to HTTPS for production (most sites use HTTPS)
+      if (process.env.NODE_ENV === "production") {
+        protocol = "https";
+      }
+    }
+    protocol = protocol.toLowerCase();
+    
+    let host = req.get("x-forwarded-host") || req.get("host") || "akirasafaris.com";
+    // Remove port number if present (use standard ports)
+    host = host.replace(/:\d+$/, "");
+    
     const origin = `${protocol}://${host}`;
     const currentUrl = `${origin}/blog/${slug}`;
 
@@ -497,13 +511,11 @@ const getBlogHTML = async (req, res) => {
       : ""}
   
   <link rel="canonical" href="${currentUrl}" />
-  <meta http-equiv="refresh" content="0; url=${currentUrl}" />
 </head>
 <body>
   <h1>${escapeHtml(ogTitle)}</h1>
   <p>${escapeHtml(ogDescription)}</p>
-  <p>If you are not redirected automatically, <a href="${currentUrl}">click here</a>.</p>
-  <script>window.location.href = "${currentUrl}";</script>
+  <p><a href="${currentUrl}">Read full article</a></p>
 </body>
 </html>`;
 
