@@ -403,8 +403,30 @@ const getBlogHTML = async (req, res) => {
     }
 
     // Get origin from headers (considering proxy)
-    // Use forwarded headers first, then request headers, then defaults
-    // Default to HTTPS for production sites
+    // CRITICAL: Use the EXACT host that the crawler is accessing to avoid 301 redirects
+    // Priority: x-forwarded-host > host header > reconstruct from request
+    let host = req.get("x-forwarded-host") || req.get("host");
+    
+    // If no host header, try to get from the request URL (shouldn't happen in production)
+    if (!host && req.get("referer")) {
+      try {
+        const refererUrl = new URL(req.get("referer"));
+        host = refererUrl.hostname;
+      } catch (e) {
+        // Ignore
+      }
+    }
+    
+    // Last resort: use default (shouldn't happen in production with proper proxy setup)
+    if (!host) {
+      host = "akirasafaris.com";
+      console.warn("Warning: No host header found, using default:", host);
+    }
+    
+    // Remove port number if present (use standard ports)
+    host = host.replace(/:\d+$/, "");
+    
+    // Get protocol - use forwarded proto first, then determine from request
     let protocol = req.get("x-forwarded-proto");
     if (!protocol || (protocol !== "http" && protocol !== "https")) {
       protocol = req.secure ? "https" : "http";
@@ -415,12 +437,19 @@ const getBlogHTML = async (req, res) => {
     }
     protocol = protocol.toLowerCase();
     
-    let host = req.get("x-forwarded-host") || req.get("host") || "akirasafaris.com";
-    // Remove port number if present (use standard ports)
-    host = host.replace(/:\d+$/, "");
-    
     const origin = `${protocol}://${host}`;
     const currentUrl = `${origin}/blog/${slug}`;
+    
+    // Log for debugging (remove in production if needed)
+    console.log("Blog HTML generation:", {
+      slug,
+      protocol,
+      host,
+      forwardedHost: req.get("x-forwarded-host"),
+      requestHost: req.get("host"),
+      currentUrl,
+      userAgent: req.get("user-agent")
+    });
 
     // Build meta data - prioritize featured image (what user wants to share most)
     const ogTitle = blog.metaTitle || blog.title || "Akira Safaris Blog";
@@ -519,7 +548,13 @@ const getBlogHTML = async (req, res) => {
 </body>
 </html>`;
 
+    // Ensure we return 200 OK (not a redirect)
+    res.status(200);
     res.setHeader("Content-Type", "text/html; charset=utf-8");
+    // Prevent any caching that might cause redirect issues
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.send(html);
   } catch (error) {
     console.error("Error generating blog HTML:", error);
