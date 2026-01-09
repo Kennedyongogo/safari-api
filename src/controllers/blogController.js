@@ -491,6 +491,9 @@ const getBlogHTML = async (req, res) => {
     if (!ogImage) {
       ogImage = `${origin}/placeholder.jpg`;
     }
+    
+    // Ensure image URL is HTTPS for Twitter and LinkedIn (they prefer HTTPS)
+    const ogImageHttps = ogImage.replace(/^http:\/\//, "https://");
 
     // Clean HTML entities
     const escapeHtml = (text) => {
@@ -512,24 +515,26 @@ const getBlogHTML = async (req, res) => {
   <title>${escapeHtml(ogTitle)}</title>
   <meta name="description" content="${escapeHtml(ogDescription)}" />
   
-  <!-- Open Graph / Facebook -->
+  <!-- Open Graph / Facebook & LinkedIn -->
   <meta property="og:type" content="article" />
   <meta property="og:url" content="${currentUrl}" />
   <meta property="og:title" content="${escapeHtml(ogTitle)}" />
   <meta property="og:description" content="${escapeHtml(ogDescription)}" />
-  <meta property="og:image" content="${ogImage}" />
-  <meta property="og:image:secure_url" content="${ogImage.replace("http://", "https://")}" />
+  <meta property="og:image" content="${ogImageHttps}" />
+  <meta property="og:image:secure_url" content="${ogImageHttps}" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:site_name" content="Akira Safaris" />
   <meta property="og:locale" content="en_US" />
   
-  <!-- Twitter -->
+  <!-- Twitter Card (for Twitter sharing) -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:url" content="${currentUrl}" />
   <meta name="twitter:title" content="${escapeHtml(ogTitle)}" />
   <meta name="twitter:description" content="${escapeHtml(ogDescription)}" />
-  <meta name="twitter:image" content="${ogImage}" />
+  <meta name="twitter:image" content="${ogImageHttps}" />
+  <meta name="twitter:image:alt" content="${escapeHtml(ogTitle)}" />
   
   <!-- Article specific -->
   ${blog.authorName ? `<meta property="article:author" content="${escapeHtml(blog.authorName)}" />` : ""}
