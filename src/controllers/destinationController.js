@@ -9,36 +9,70 @@ const {
   logDelete,
 } = require("../utils/auditLogger");
 
+// Get valid package categories from the model
+const PACKAGE_CATEGORIES = Destination.PACKAGE_CATEGORIES || [
+  // Uganda categories
+  "CLASSIC UGANDA SAFARI TOURS",
+  "PRIMATE SAFARIS",
+  "ADVENTURE & NATURE EXPERIENCES",
+  "COMBINED SAFARI & PRIMATE HOLIDAYS",
+  "SPECIAL INTEREST & SLOW TRAVEL",
+  // Kenya categories
+  "SAFARI TOURS",
+  "CLIMB MOUNT KENYA PACKAGES",
+  "BEACH EXTENSION PACKAGES",
+  "COMBINED SAFARI & BEACH HOLIDAYS",
+  "SPECIAL INTEREST SAFARI",
+  // Tanzania categories
+  "NORTHERN CIRCUIT SAFARI TOURS",
+  "SOUTHERN & WESTERN CIRCUIT SAFARIS",
+  "MOUNT KILIMANJARO CLIMBS",
+  "ZANZIBAR BEACH EXTENSIONS",
+  "COMBINED SAFARI & BEACH HOLIDAYS"
+];
+
+// Validate package categories
+const validatePackageCategories = (packages) => {
+  if (!packages || !Array.isArray(packages)) {
+    return { valid: true };
+  }
+
+  for (let i = 0; i < packages.length; i++) {
+    const category = packages[i];
+    if (category.category_name && !PACKAGE_CATEGORIES.includes(category.category_name)) {
+      return {
+        valid: false,
+        error: `Invalid category '${category.category_name}' at index ${i}. Allowed categories: ${PACKAGE_CATEGORIES.join(", ")}`,
+      };
+    }
+  }
+
+  return { valid: true };
+};
+
 // Create destination
 const createDestination = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const {
       title,
+      subtitle,
       slug,
-      description,
+      brief_description,
       location,
       hero_image,
       hero_image_alt,
       gallery_images,
-      duration_min,
-      duration_max,
-      duration_display,
-      wildlife_types,
-      featured_species,
-      key_highlights,
-      attractions,
-      category_tags,
-      best_visit_months,
+      packages,
       is_active,
       sort_order,
     } = req.body;
 
     // Validate required fields
-    if (!title || !description || !location) {
+    if (!title || !brief_description || !location) {
       return res.status(400).json({
         success: false,
-        message: "Please provide title, description, and location",
+        message: "Please provide title, brief_description, and location",
       });
     }
 
@@ -70,42 +104,13 @@ const createDestination = async (req, res) => {
       galleryImagesArray = [...galleryImagesArray, ...uploadedGalleryImages];
     }
 
-    // Handle attraction images upload - new format with indexed fields
-    const collectAttractionImages = () => {
-      const attractionImages = {};
-      if (req.files) {
-        Object.keys(req.files).forEach(key => {
-          if (key.startsWith('attraction_images_')) {
-            const index = parseInt(key.replace('attraction_images_', ''));
-            attractionImages[index] = req.files[key].map(file => convertToRelativePath(file.path));
-          }
-        });
-      }
-      return attractionImages;
-    };
-    const attractionImagesByIndex = collectAttractionImages();
-
-    // Handle JSON arrays - convert to arrays if needed
-    const parseJsonArray = (value) => {
-      if (!value) return [];
-      if (Array.isArray(value)) return value.filter(item => item && item.toString().trim());
-      if (typeof value === 'string') {
+    // Parse packages JSON
+    const parsePackages = (packagesData) => {
+      if (!packagesData) return [];
+      if (Array.isArray(packagesData)) return packagesData;
+      if (typeof packagesData === 'string') {
         try {
-          return JSON.parse(value).filter(item => item && item.toString().trim());
-        } catch (e) {
-          return value.split(',').map(item => item.trim()).filter(item => item);
-        }
-      }
-      return [];
-    };
-
-    // Parse complex JSON objects
-    const parseJsonObject = (value) => {
-      if (!value) return [];
-      if (Array.isArray(value)) return value;
-      if (typeof value === 'string') {
-        try {
-          return JSON.parse(value);
+          return JSON.parse(packagesData);
         } catch (e) {
           return [];
         }
@@ -113,42 +118,80 @@ const createDestination = async (req, res) => {
       return [];
     };
 
-    // Process attractions to merge uploaded images
-    const processAttractions = (attractionsData) => {
-      let parsedAttractions = parseJsonObject(attractionsData);
-      if (!Array.isArray(parsedAttractions)) {
-        parsedAttractions = [];
+    // Handle package gallery images upload
+    // Format: package_gallery_<categoryIndex>_<packageIndex>
+    const collectPackageGalleryImages = () => {
+      const packageImages = {};
+      if (req.files) {
+        Object.keys(req.files).forEach(key => {
+          if (key.startsWith('package_gallery_')) {
+            const parts = key.replace('package_gallery_', '').split('_');
+            if (parts.length === 2) {
+              const catIndex = parseInt(parts[0]);
+              const pkgIndex = parseInt(parts[1]);
+              if (!packageImages[catIndex]) {
+                packageImages[catIndex] = {};
+              }
+              packageImages[catIndex][pkgIndex] = req.files[key].map(file => 
+                convertToRelativePath(file.path)
+              );
+            }
+          }
+        });
+      }
+      return packageImages;
+    };
+
+    const packageGalleryImagesByIndex = collectPackageGalleryImages();
+
+    // Process packages to merge uploaded gallery images
+    const processPackages = (packagesData) => {
+      let parsedPackages = parsePackages(packagesData);
+      if (!Array.isArray(parsedPackages)) {
+        parsedPackages = [];
       }
 
-      // Add uploaded attraction images to the correct attractions based on index
-      parsedAttractions = parsedAttractions.map((attraction, index) => {
-        const newImages = attractionImagesByIndex[index] || [];
+      // Validate package categories
+      const categoryValidation = validatePackageCategories(parsedPackages);
+      if (!categoryValidation.valid) {
+        throw new Error(categoryValidation.error);
+      }
+
+      // Add uploaded package gallery images to the correct packages
+      parsedPackages = parsedPackages.map((category, catIndex) => {
+        if (!category.packages || !Array.isArray(category.packages)) {
+          return category;
+        }
+
+        const categoryImages = packageGalleryImagesByIndex[catIndex] || {};
+        const updatedPackages = category.packages.map((pkg, pkgIndex) => {
+          const newGalleryImages = categoryImages[pkgIndex] || [];
+          const existingGallery = Array.isArray(pkg.gallery) ? pkg.gallery : [];
+          return {
+            ...pkg,
+            gallery: [...existingGallery, ...newGalleryImages]
+          };
+        });
+
         return {
-          ...attraction,
-          images: [...(attraction.images || []), ...newImages]
+          ...category,
+          packages: updatedPackages
         };
       });
 
-      return parsedAttractions;
+      return parsedPackages;
     };
 
     const destination = await Destination.create({
       title,
+      subtitle,
       slug: slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-      description,
+      brief_description,
       location,
       hero_image: heroImagePath,
       hero_image_alt: hero_image_alt || `${title} destination`,
       gallery_images: galleryImagesArray,
-      duration_min: duration_min ? parseInt(duration_min) : null,
-      duration_max: duration_max ? parseInt(duration_max) : null,
-      duration_display,
-      wildlife_types: parseJsonArray(wildlife_types),
-      featured_species: parseJsonArray(featured_species),
-      key_highlights: parseJsonArray(key_highlights),
-      attractions: processAttractions(attractions),
-      category_tags: parseJsonArray(category_tags),
-      best_visit_months: parseJsonArray(best_visit_months),
+      packages: processPackages(packages),
       is_active: is_active !== undefined ? is_active : true,
       sort_order: sort_order ? parseInt(sort_order) : 0,
     }, { transaction });
@@ -197,7 +240,8 @@ const getAllDestinations = async (req, res) => {
     if (search) {
       whereClause[Op.or] = [
         { title: { [Op.iLike]: `%${search}%` } },
-        { description: { [Op.iLike]: `%${search}%` } },
+        { brief_description: { [Op.iLike]: `%${search}%` } },
+        { subtitle: { [Op.iLike]: `%${search}%` } },
         { location: { [Op.iLike]: `%${search}%` } },
       ];
     }
@@ -322,20 +366,7 @@ const updateDestination = async (req, res) => {
       // If hero_image has a value, keep the existing value
     }
 
-    // Parse JSON arrays if they're strings
-    const parseJsonArray = (value) => {
-      if (!value) return undefined;
-      if (Array.isArray(value)) return value.filter(item => item && item.toString().trim());
-      if (typeof value === 'string') {
-        try {
-          return JSON.parse(value).filter(item => item && item.toString().trim());
-        } catch (e) {
-          return value.split(',').map(item => item.trim()).filter(item => item);
-        }
-      }
-      return undefined;
-    };
-
+    // Parse JSON objects
     const parseJsonObject = (value) => {
       if (!value) return undefined;
       if (Array.isArray(value)) return value;
@@ -349,55 +380,75 @@ const updateDestination = async (req, res) => {
       return undefined;
     };
 
-    // Handle attraction images upload - new format with indexed fields
-    const collectAttractionImages = () => {
-      const attractionImages = {};
+    // Handle package gallery images upload
+    // Format: package_gallery_<categoryIndex>_<packageIndex>
+    const collectPackageGalleryImages = () => {
+      const packageImages = {};
       if (req.files) {
         Object.keys(req.files).forEach(key => {
-          if (key.startsWith('attraction_images_')) {
-            const index = parseInt(key.replace('attraction_images_', ''));
-            attractionImages[index] = req.files[key].map(file => convertToRelativePath(file.path));
+          if (key.startsWith('package_gallery_')) {
+            const parts = key.replace('package_gallery_', '').split('_');
+            if (parts.length === 2) {
+              const catIndex = parseInt(parts[0]);
+              const pkgIndex = parseInt(parts[1]);
+              if (!packageImages[catIndex]) {
+                packageImages[catIndex] = {};
+              }
+              packageImages[catIndex][pkgIndex] = req.files[key].map(file => 
+                convertToRelativePath(file.path)
+              );
+            }
           }
         });
       }
-      return attractionImages;
+      return packageImages;
     };
-    const attractionImagesByIndex = collectAttractionImages();
 
-    // Process attractions to merge uploaded images
-    const processAttractions = (attractionsData) => {
-      let parsedAttractions = parseJsonObject(attractionsData);
-      if (!Array.isArray(parsedAttractions)) {
-        parsedAttractions = [];
+    const packageGalleryImagesByIndex = collectPackageGalleryImages();
+
+    // Process packages to merge uploaded gallery images
+    const processPackages = (packagesData, existingPackages) => {
+      let parsedPackages = parseJsonObject(packagesData);
+      if (!Array.isArray(parsedPackages)) {
+        // If not provided, use existing packages
+        parsedPackages = Array.isArray(existingPackages) ? existingPackages : [];
       }
 
-      // Add uploaded attraction images to the correct attractions based on index
-      parsedAttractions = parsedAttractions.map((attraction, index) => {
-        const newImages = attractionImagesByIndex[index] || [];
+      // Validate package categories
+      const categoryValidation = validatePackageCategories(parsedPackages);
+      if (!categoryValidation.valid) {
+        throw new Error(categoryValidation.error);
+      }
+
+      // Add uploaded package gallery images to the correct packages
+      parsedPackages = parsedPackages.map((category, catIndex) => {
+        if (!category.packages || !Array.isArray(category.packages)) {
+          return category;
+        }
+
+        const categoryImages = packageGalleryImagesByIndex[catIndex] || {};
+        const updatedPackages = category.packages.map((pkg, pkgIndex) => {
+          const newGalleryImages = categoryImages[pkgIndex] || [];
+          const existingGallery = Array.isArray(pkg.gallery) ? pkg.gallery : [];
+          return {
+            ...pkg,
+            gallery: [...existingGallery, ...newGalleryImages]
+          };
+        });
+
         return {
-          ...attraction,
-          images: [...(attraction.images || []), ...newImages]
+          ...category,
+          packages: updatedPackages
         };
       });
 
-      return parsedAttractions;
+      return parsedPackages;
     };
 
-    // Apply parsing to array/object fields FIRST (before handling file uploads)
-    const arrayFields = ['wildlife_types', 'featured_species', 'key_highlights', 'category_tags', 'best_visit_months'];
-    const objectFields = ['gallery_images'];
-
-    arrayFields.forEach(field => {
-      if (updates[field] !== undefined) {
-        updates[field] = parseJsonArray(updates[field]);
-      }
-    });
-
-    objectFields.forEach(field => {
-      if (updates[field] !== undefined) {
-        updates[field] = parseJsonObject(updates[field]);
-      }
-    });
+    // Handle gallery images
+    if (updates.gallery_images !== undefined) {
+      updates.gallery_images = parseJsonObject(updates.gallery_images);
+    }
 
     // Handle gallery images upload - IMPORTANT: Use the parsed gallery_images from frontend (which includes deletions)
     // Then append new uploaded files to that list
@@ -421,9 +472,9 @@ const updateDestination = async (req, res) => {
       updates.hero_image = updates.gallery_images[0];
     }
 
-    // Handle attractions separately to merge uploaded images
-    if (updates.attractions !== undefined) {
-      updates.attractions = processAttractions(updates.attractions);
+    // Handle packages separately to merge uploaded gallery images
+    if (updates.packages !== undefined) {
+      updates.packages = processPackages(updates.packages, destination.packages);
     }
 
     // Update slug if title changed
@@ -434,7 +485,7 @@ const updateDestination = async (req, res) => {
     // Save old values BEFORE updating (needed for file deletion comparison)
     const oldHeroImage = destination.hero_image;
     const oldGalleryImages = Array.isArray(destination.gallery_images) ? destination.gallery_images : [];
-    const oldAttractions = Array.isArray(destination.attractions) ? destination.attractions : [];
+    const oldPackages = Array.isArray(destination.packages) ? destination.packages : [];
 
     await destination.update(updates, { transaction });
 
@@ -456,19 +507,28 @@ const updateDestination = async (req, res) => {
       }
     }
 
-    // Delete attraction images that were removed
-    if (updates.attractions !== undefined && Array.isArray(updates.attractions)) {
-      for (let i = 0; i < Math.max(oldAttractions.length, updates.attractions.length); i++) {
-        const oldAttraction = oldAttractions[i] || {};
-        const newAttraction = updates.attractions[i] || {};
+    // Delete package gallery images that were removed
+    if (updates.packages !== undefined && Array.isArray(updates.packages)) {
+      const newPackages = Array.isArray(updates.packages) ? updates.packages : [];
+      
+      // Compare old and new packages to find deleted gallery images
+      for (let catIndex = 0; catIndex < Math.max(oldPackages.length, newPackages.length); catIndex++) {
+        const oldCategory = oldPackages[catIndex] || {};
+        const newCategory = newPackages[catIndex] || {};
+        const oldCategoryPackages = Array.isArray(oldCategory.packages) ? oldCategory.packages : [];
+        const newCategoryPackages = Array.isArray(newCategory.packages) ? newCategory.packages : [];
 
-        const oldImages = Array.isArray(oldAttraction.images) ? oldAttraction.images.filter(img => typeof img === 'string') : [];
-        const newImages = Array.isArray(newAttraction.images) ? newAttraction.images.filter(img => typeof img === 'string') : [];
+        for (let pkgIndex = 0; pkgIndex < Math.max(oldCategoryPackages.length, newCategoryPackages.length); pkgIndex++) {
+          const oldPackage = oldCategoryPackages[pkgIndex] || {};
+          const newPackage = newCategoryPackages[pkgIndex] || {};
+          const oldGallery = Array.isArray(oldPackage.gallery) ? oldPackage.gallery.filter(img => typeof img === 'string') : [];
+          const newGallery = Array.isArray(newPackage.gallery) ? newPackage.gallery.filter(img => typeof img === 'string') : [];
 
-        const imagesToDelete = oldImages.filter(oldImg => !newImages.includes(oldImg));
-        for (const imagePath of imagesToDelete) {
-          const fullPath = imagePath.startsWith('uploads/') ? imagePath : `uploads/destinations/${imagePath}`;
-          await deleteFile(path.join(__dirname, '..', '..', fullPath));
+          const imagesToDelete = oldGallery.filter(oldImg => !newGallery.includes(oldImg));
+          for (const imagePath of imagesToDelete) {
+            const fullPath = imagePath.startsWith('uploads/') ? imagePath : `uploads/destinations/${imagePath}`;
+            await deleteFile(path.join(__dirname, '..', '..', fullPath));
+          }
         }
       }
     }
@@ -553,11 +613,15 @@ const deleteDestination = async (req, res) => {
       imagesToDelete.push(...destination.gallery_images);
     }
 
-    // Add attraction images
-    if (Array.isArray(destination.attractions)) {
-      destination.attractions.forEach(attraction => {
-        if (Array.isArray(attraction.images)) {
-          imagesToDelete.push(...attraction.images.filter(img => typeof img === 'string'));
+    // Add package gallery images
+    if (Array.isArray(destination.packages)) {
+      destination.packages.forEach(category => {
+        if (Array.isArray(category.packages)) {
+          category.packages.forEach(pkg => {
+            if (Array.isArray(pkg.gallery)) {
+              imagesToDelete.push(...pkg.gallery.filter(img => typeof img === 'string'));
+            }
+          });
         }
       });
     }

@@ -1,10 +1,49 @@
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
-  const DESTINATION_CATEGORIES = [
-    "Wildlife Adventures",
-    "Nature Exploration",
-    "Cultural Experiences",
+  // Predefined package categories based on TOC structure - using ENUM
+  // Includes categories for Uganda, Kenya, and Tanzania destinations
+  const PACKAGE_CATEGORIES_ENUM = DataTypes.ENUM(
+    // Uganda categories
+    "CLASSIC UGANDA SAFARI TOURS",
+    "PRIMATE SAFARIS",
+    "ADVENTURE & NATURE EXPERIENCES",
+    "COMBINED SAFARI & PRIMATE HOLIDAYS",
+    "SPECIAL INTEREST & SLOW TRAVEL",
+    // Kenya categories
+    "SAFARI TOURS",
+    "CLIMB MOUNT KENYA PACKAGES",
+    "BEACH EXTENSION PACKAGES",
+    "COMBINED SAFARI & BEACH HOLIDAYS",
+    "SPECIAL INTEREST SAFARI",
+    // Tanzania categories
+    "NORTHERN CIRCUIT SAFARI TOURS",
+    "SOUTHERN & WESTERN CIRCUIT SAFARIS",
+    "MOUNT KILIMANJARO CLIMBS",
+    "ZANZIBAR BEACH EXTENSIONS",
+    "COMBINED SAFARI & BEACH HOLIDAYS"
+  );
+
+  // Array version for validation and frontend use
+  const PACKAGE_CATEGORIES = [
+    // Uganda categories
+    "CLASSIC UGANDA SAFARI TOURS",
+    "PRIMATE SAFARIS",
+    "ADVENTURE & NATURE EXPERIENCES",
+    "COMBINED SAFARI & PRIMATE HOLIDAYS",
+    "SPECIAL INTEREST & SLOW TRAVEL",
+    // Kenya categories
+    "SAFARI TOURS",
+    "CLIMB MOUNT KENYA PACKAGES",
+    "BEACH EXTENSION PACKAGES",
+    "COMBINED SAFARI & BEACH HOLIDAYS",
+    "SPECIAL INTEREST SAFARI",
+    // Tanzania categories
+    "NORTHERN CIRCUIT SAFARI TOURS",
+    "SOUTHERN & WESTERN CIRCUIT SAFARIS",
+    "MOUNT KILIMANJARO CLIMBS",
+    "ZANZIBAR BEACH EXTENSIONS",
+    "COMBINED SAFARI & BEACH HOLIDAYS",
   ];
 
   const Destination = sequelize.define(
@@ -20,16 +59,21 @@ module.exports = (sequelize) => {
         allowNull: false,
         comment: "Destination name (e.g., Kenya, Uganda)",
       },
+      subtitle: {
+        type: DataTypes.STRING(200),
+        allowNull: true,
+        comment: "Destination tagline/subtitle (e.g., 'THE PEARL OF AFRICA')",
+      },
       slug: {
         type: DataTypes.STRING(100),
         allowNull: false,
         unique: true,
         comment: "URL-friendly slug for routing",
       },
-      description: {
+      brief_description: {
         type: DataTypes.TEXT,
         allowNull: false,
-        comment: "Main destination description",
+        comment: "Brief description of the destination/country",
       },
       location: {
         type: DataTypes.STRING(50),
@@ -55,76 +99,131 @@ module.exports = (sequelize) => {
         comment: "Array of additional gallery image URLs",
       },
 
-      // Travel Information
-      duration_min: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        comment: "Minimum duration in days",
-      },
-      duration_max: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        comment: "Maximum duration in days",
-      },
-      duration_display: {
-        type: DataTypes.STRING(20),
-        allowNull: true,
-        comment: "Human-readable duration (e.g., '5-14 Days')",
-      },
-      best_visit_months: {
+      // Packages organized by categories
+      // Structure: [
+      //   {
+      //     category_name: "CLASSIC UGANDA SAFARI TOURS",
+      //     category_order: 1,
+      //     packages: [
+      //       {
+      //         number: 1,
+      //         title: "3-Day Murchison Falls Wildlife & Nile Safari",
+      //         short_description: "Uganda's most iconic park with waterfalls, wildlife, and the Nile.",
+      //         highlights: [
+      //           "Game drives on the northern bank",
+      //           "Boat safari to the base of Murchison Falls",
+      //           "Views of the Nile squeezing through a 7-metre gorge"
+      //         ],
+      //         pricing_tiers: [
+      //           { tier: "Mid-range", price_range: "USD 750–1,100 per person" },
+      //           { tier: "Luxury", price_range: "USD 1,400–2,200 per person" }
+      //         ],
+      //         gallery: [
+      //           "https://example.com/image1.jpg",
+      //           "https://example.com/image2.jpg"
+      //         ]
+      //       }
+      //     ]
+      //   }
+      // ]
+      packages: {
         type: DataTypes.JSON,
         allowNull: true,
         defaultValue: [],
-        comment: "Array of best months to visit (e.g., ['July', 'August', 'September', 'October'])",
-      },
-
-      // Wildlife Information
-      wildlife_types: {
-        type: DataTypes.JSON,
-        allowNull: true,
-        defaultValue: [],
-        comment: "Array of wildlife types (e.g., ['Big Five', 'Great Migration'])",
-      },
-      featured_species: {
-        type: DataTypes.JSON,
-        allowNull: true,
-        defaultValue: [],
-        comment: "Key species to highlight",
-      },
-
-      // Content Arrays
-      key_highlights: {
-        type: DataTypes.JSON,
-        allowNull: true,
-        defaultValue: [],
-        comment: "Array of key attraction names (e.g., ['Maasai Mara', 'Amboseli'])",
-      },
-      attractions: {
-        type: DataTypes.JSON,
-        allowNull: true,
-        defaultValue: [],
-        comment: "Array of attraction objects with name, description, and images",
-      },
-
-      // Categories/Tags
-      category_tags: {
-        type: DataTypes.JSON,
-        allowNull: true,
-        defaultValue: [],
-        comment: "Array of category tags (e.g., ['Wildlife Adventures', 'Cultural Experiences'])",
+        comment: "Packages/tours organized by categories for this destination",
         validate: {
-          isValidTags(value) {
-            if (!Array.isArray(value)) return;
-            const invalid = value.filter(
-              (item) => !DESTINATION_CATEGORIES.includes(String(item))
-            );
-            if (invalid.length) {
-              throw new Error(
-                `Invalid category_tags entries: ${invalid.join(
-                  ", "
-                )}. Allowed: ${DESTINATION_CATEGORIES.join(", ")}`
-              );
+          isValidPackages(value) {
+            if (!value) return; // Allow null/empty
+            if (!Array.isArray(value)) {
+              throw new Error("packages must be an array");
             }
+            value.forEach((category, catIndex) => {
+              if (
+                !category.category_name ||
+                typeof category.category_name !== "string"
+              ) {
+                throw new Error(
+                  `Category at index ${catIndex} must have a valid category_name`
+                );
+              }
+              // Validate category name against predefined categories
+              if (!PACKAGE_CATEGORIES.includes(category.category_name)) {
+                throw new Error(
+                  `Invalid category_name '${
+                    category.category_name
+                  }' at index ${catIndex}. Allowed categories: ${PACKAGE_CATEGORIES.join(
+                    ", "
+                  )}`
+                );
+              }
+              if (
+                category.category_order === undefined ||
+                typeof category.category_order !== "number"
+              ) {
+                throw new Error(
+                  `Category at index ${catIndex} must have a valid category_order`
+                );
+              }
+              if (!Array.isArray(category.packages)) {
+                throw new Error(
+                  `Category '${category.category_name}' must have a packages array`
+                );
+              }
+              category.packages.forEach((pkg, pkgIndex) => {
+                if (
+                  pkg.number === undefined ||
+                  typeof pkg.number !== "number"
+                ) {
+                  throw new Error(
+                    `Package at index ${pkgIndex} in category '${category.category_name}' must have a number`
+                  );
+                }
+                if (!pkg.title || typeof pkg.title !== "string") {
+                  throw new Error(
+                    `Package at index ${pkgIndex} in category '${category.category_name}' must have a title`
+                  );
+                }
+                if (
+                  !pkg.short_description ||
+                  typeof pkg.short_description !== "string"
+                ) {
+                  throw new Error(
+                    `Package at index ${pkgIndex} in category '${category.category_name}' must have a short_description`
+                  );
+                }
+                if (!Array.isArray(pkg.highlights)) {
+                  throw new Error(
+                    `Package '${pkg.title}' must have a highlights array`
+                  );
+                }
+                if (!Array.isArray(pkg.pricing_tiers)) {
+                  throw new Error(
+                    `Package '${pkg.title}' must have a pricing_tiers array`
+                  );
+                }
+                // Gallery is optional, but if provided must be an array
+                if (pkg.gallery !== undefined && !Array.isArray(pkg.gallery)) {
+                  throw new Error(
+                    `Package '${pkg.title}' gallery must be an array if provided`
+                  );
+                }
+                pkg.pricing_tiers.forEach((pricing, pricingIndex) => {
+                  if (!pricing.tier || typeof pricing.tier !== "string") {
+                    throw new Error(
+                      `Pricing tier at index ${pricingIndex} in package '${pkg.title}' must have a tier`
+                    );
+                  }
+                  if (
+                    !pricing.price_range ||
+                    typeof pricing.price_range !== "string"
+                  ) {
+                    throw new Error(
+                      `Pricing tier at index ${pricingIndex} in package '${pkg.title}' must have a price_range`
+                    );
+                  }
+                });
+              });
+            });
           },
         },
       },
@@ -163,6 +262,10 @@ module.exports = (sequelize) => {
       ],
     }
   );
+
+  // Export categories for use in other parts of the application
+  Destination.PACKAGE_CATEGORIES = PACKAGE_CATEGORIES;
+  Destination.PACKAGE_CATEGORIES_ENUM = PACKAGE_CATEGORIES_ENUM;
 
   return Destination;
 };

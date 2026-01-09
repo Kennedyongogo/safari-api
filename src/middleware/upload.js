@@ -43,6 +43,7 @@ const storage = multer.diskStorage({
       file.fieldname === "hero_image" ||
       file.fieldname === "gallery_images" ||
       file.fieldname.startsWith("attraction_images_") ||
+      file.fieldname.startsWith("package_gallery_") ||
       file.fieldname === "destination_image" ||
       file.fieldname === "destination_images"
     ) {
@@ -167,15 +168,19 @@ const uploadLodgeGallery = upload.array("lodge_gallery", 10);
 // Middleware for package images
 const uploadPackageImage = upload.single("image");
 
-// Middleware for destination images (hero + gallery + attractions)
+// Middleware for destination images (hero + gallery + package galleries)
+// Package gallery format: package_gallery_<categoryIndex>_<packageIndex>
+// Supports up to 10 categories with 20 packages each, 10 images per package
 const uploadDestinationImages = upload.fields([
   { name: "hero_image", maxCount: 1 },
   { name: "gallery_images", maxCount: 10 },
-  // Support up to 20 attractions with indexed image fields
-  ...Array.from({ length: 20 }, (_, i) => ({
-    name: `attraction_images_${i}`,
-    maxCount: 20 // Allow up to 20 images per attraction
-  }))
+  // Support package gallery images: package_gallery_<categoryIndex>_<packageIndex>
+  ...Array.from({ length: 10 }, (_, catIndex) =>
+    Array.from({ length: 20 }, (_, pkgIndex) => ({
+      name: `package_gallery_${catIndex}_${pkgIndex}`,
+      maxCount: 10 // Allow up to 10 images per package gallery
+    }))
+  ).flat()
 ]);
 
 // Middleware for single destination image
