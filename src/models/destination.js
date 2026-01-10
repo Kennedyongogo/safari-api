@@ -2,7 +2,7 @@ const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
   // Predefined package categories based on TOC structure - using ENUM
-  // Includes categories for Uganda, Kenya, and Tanzania destinations
+  // Includes categories for Uganda, Kenya, Tanzania, and Rwanda destinations
   const PACKAGE_CATEGORIES_ENUM = DataTypes.ENUM(
     // Uganda categories
     "CLASSIC UGANDA SAFARI TOURS",
@@ -21,7 +21,11 @@ module.exports = (sequelize) => {
     "SOUTHERN & WESTERN CIRCUIT SAFARIS",
     "MOUNT KILIMANJARO CLIMBS",
     "ZANZIBAR BEACH EXTENSIONS",
-    "COMBINED SAFARI & BEACH HOLIDAYS"
+    "COMBINED SAFARI & BEACH HOLIDAYS",
+    // Rwanda categories
+    "GORILLA & PRIMATE SAFARIS",
+    "WILDLIFE & SCENIC SAFARIS",
+    "CULTURE, SCENERY & RELAXATION"
   );
 
   // Array version for validation and frontend use
@@ -44,6 +48,10 @@ module.exports = (sequelize) => {
     "MOUNT KILIMANJARO CLIMBS",
     "ZANZIBAR BEACH EXTENSIONS",
     "COMBINED SAFARI & BEACH HOLIDAYS",
+    // Rwanda categories
+    "GORILLA & PRIMATE SAFARIS",
+    "WILDLIFE & SCENIC SAFARIS",
+    "CULTURE, SCENERY & RELAXATION",
   ];
 
   const Destination = sequelize.define(
