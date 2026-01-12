@@ -27,6 +27,7 @@ const galleryRoutes = require("./routes/galleryRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const formRoutes = require("./routes/formRoutes");
 const formFieldRoutes = require("./routes/formFieldRoutes");
+const packageInquiryRoutes = require("./routes/packageInquiryRoutes");
 
 const app = express();
 
@@ -138,8 +139,10 @@ app.use("/api/gallery", galleryRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/forms", formRoutes);
 app.use("/api/form-fields", formFieldRoutes);
+app.use("/api/package-inquiries", packageInquiryRoutes);
 console.log("✅ /api/lodges route registered");
 console.log("✅ /api/uploads route registered");
+console.log("✅ /api/package-inquiries route registered");
 
 // Forgot password endpoint
 app.post("/api/auth/forgot", async (req, res) => {

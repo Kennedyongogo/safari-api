@@ -12,6 +12,7 @@ const Package = require("./package")(sequelize);
 const RouteStage = require("./routeStage")(sequelize);
 const Destination = require("./destination")(sequelize);
 const Gallery = require("./gallery")(sequelize);
+const PackageInquiry = require("./packageInquiry")(sequelize);
 
 // Dynamic Form Models
 const Form = require("./form")(sequelize);
@@ -31,6 +32,7 @@ const models = {
   RouteStage,
   Destination,
   Gallery,
+  PackageInquiry,
   // Dynamic Form Models
   Form,
   FormField,
@@ -56,6 +58,7 @@ const initializeModels = async () => {
     await RouteStage.sync({ force: false, alter: false });
     await Destination.sync({ force: false, alter: false });
     await Gallery.sync({ force: false, alter: false });
+    await PackageInquiry.sync({ force: false, alter: false });
 
     // Dynamic Form Models
     await Form.sync({ force: false, alter: false });
@@ -220,6 +223,26 @@ const setupAssociations = () => {
     models.FormSubmission.belongsTo(models.AdminUser, {
       foreignKey: "reviewed_by",
       as: "reviewer",
+    });
+
+    // PackageInquiry → Destination
+    models.PackageInquiry.belongsTo(models.Destination, {
+      foreignKey: "destination_id",
+      as: "destination",
+    });
+    models.Destination.hasMany(models.PackageInquiry, {
+      foreignKey: "destination_id",
+      as: "inquiries",
+    });
+
+    // PackageInquiry → AdminUser (replied_by)
+    models.PackageInquiry.belongsTo(models.AdminUser, {
+      foreignKey: "replied_by",
+      as: "replier",
+    });
+    models.AdminUser.hasMany(models.PackageInquiry, {
+      foreignKey: "replied_by",
+      as: "repliedInquiries",
     });
 
     console.log("✅ All associations set up successfully");
