@@ -135,7 +135,7 @@ const getAllInquiries = async (req, res) => {
         {
           model: AdminUser,
           as: "replier",
-          attributes: ["id", "name", "email"],
+          attributes: ["id", "full_name", "email"],
           required: false,
         },
       ],
@@ -180,7 +180,7 @@ const getInquiryById = async (req, res) => {
         {
           model: AdminUser,
           as: "replier",
-          attributes: ["id", "name", "email"],
+          attributes: ["id", "full_name", "email"],
           required: false,
         },
       ],
@@ -269,7 +269,7 @@ const updateInquiry = async (req, res) => {
         {
           model: AdminUser,
           as: "replier",
-          attributes: ["id", "name", "email"],
+          attributes: ["id", "full_name", "email"],
           required: false,
         },
       ],
