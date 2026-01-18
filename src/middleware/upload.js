@@ -54,6 +54,22 @@ const storage = multer.diskStorage({
       file.fieldname === "gallery_media"
     ) {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "gallery");
+    } else if (file.fieldname === "traveller_gallery_media") {
+      uploadPath = path.join(
+        __dirname,
+        "..",
+        "..",
+        "uploads",
+        "traveller-gallery"
+      );
+    } else if (file.fieldname === "interest_gallery_media") {
+      uploadPath = path.join(
+        __dirname,
+        "..",
+        "..",
+        "uploads",
+        "interest-gallery"
+      );
     } else {
       uploadPath = path.join(__dirname, "..", "..", "uploads", "misc");
     }
@@ -198,6 +214,12 @@ const uploadGalleryVideo = upload.single("gallery_video");
 // Middleware for gallery media (single file - either image or video)
 const uploadGalleryMedia = upload.single("gallery_media");
 
+// Middleware for traveller gallery media (single file - either image or video)
+const uploadTravellerGalleryMedia = upload.single("traveller_gallery_media");
+
+// Middleware for interest gallery media (single file - either image or video)
+const uploadInterestGalleryMedia = upload.single("interest_gallery_media");
+
 // Middleware for multiple gallery items
 const uploadGalleryItems = upload.array("gallery_items", 20);
 
@@ -296,6 +318,8 @@ module.exports = {
   uploadGalleryImage,
   uploadGalleryVideo,
   uploadGalleryMedia,
+  uploadTravellerGalleryMedia,
+  uploadInterestGalleryMedia,
   uploadGalleryItems,
   handleUploadError,
   deleteFile,

@@ -24,6 +24,8 @@ const packageRoutes = require("./routes/packageRoutes");
 const routeStageRoutes = require("./routes/routeStageRoutes");
 const destinationRoutes = require("./routes/destinationRoutes");
 const galleryRoutes = require("./routes/galleryRoutes");
+const travellerGalleryRoutes = require("./routes/travellerGalleryRoutes");
+const interestGalleryRoutes = require("./routes/interestGalleryRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const formRoutes = require("./routes/formRoutes");
 const formFieldRoutes = require("./routes/formFieldRoutes");
@@ -45,6 +47,8 @@ const packagesUploadPath = path.join(__dirname, "..", "uploads", "packages");
 const stagesUploadPath = path.join(__dirname, "..", "uploads", "stages");
 const destinationsUploadPath = path.join(__dirname, "..", "uploads", "destinations");
 const galleryUploadPath = path.join(__dirname, "..", "uploads", "gallery");
+const travellerGalleryUploadPath = path.join(__dirname, "..", "uploads", "traveller-gallery");
+const interestGalleryUploadPath = path.join(__dirname, "..", "uploads", "interest-gallery");
 const miscUploadPath = path.join(__dirname, "..", "uploads", "misc");
 const postsUploadPath = path.join(__dirname, "..", "uploads", "posts");
 
@@ -80,6 +84,18 @@ console.log(
   fs.existsSync(galleryUploadPath)
 );
 console.log(
+  "  - Traveller Gallery:",
+  travellerGalleryUploadPath,
+  "- Exists:",
+  fs.existsSync(travellerGalleryUploadPath)
+);
+console.log(
+  "  - Interest Gallery:",
+  interestGalleryUploadPath,
+  "- Exists:",
+  fs.existsSync(interestGalleryUploadPath)
+);
+console.log(
   "  - Misc:",
   miscUploadPath,
   "- Exists:",
@@ -101,6 +117,8 @@ app.use("/uploads/packages", express.static(packagesUploadPath));
 app.use("/uploads/stages", express.static(stagesUploadPath));
 app.use("/uploads/destinations", express.static(destinationsUploadPath));
 app.use("/uploads/gallery", express.static(galleryUploadPath));
+app.use("/uploads/traveller-gallery", express.static(travellerGalleryUploadPath));
+app.use("/uploads/interest-gallery", express.static(interestGalleryUploadPath));
 app.use("/uploads/misc", express.static(miscUploadPath));
 app.use("/uploads/posts", express.static(postsUploadPath));
 
@@ -136,6 +154,8 @@ app.use("/api/packages", packageRoutes);
 app.use("/api/route-stages", routeStageRoutes);
 app.use("/api/destinations", destinationRoutes);
 app.use("/api/gallery", galleryRoutes);
+app.use("/api/traveller-gallery", travellerGalleryRoutes);
+app.use("/api/interest-gallery", interestGalleryRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/forms", formRoutes);
 app.use("/api/form-fields", formFieldRoutes);
@@ -261,6 +281,9 @@ const createUploadDirectories = () => {
     path.join(__dirname, "..", "uploads", "documents"),
     path.join(__dirname, "..", "uploads", "lodges"),
     path.join(__dirname, "..", "uploads", "stages"),
+    path.join(__dirname, "..", "uploads", "gallery"),
+    path.join(__dirname, "..", "uploads", "traveller-gallery"),
+    path.join(__dirname, "..", "uploads", "interest-gallery"),
     path.join(__dirname, "..", "uploads", "misc"),
   ];
 

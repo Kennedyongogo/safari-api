@@ -12,6 +12,8 @@ const Package = require("./package")(sequelize);
 const RouteStage = require("./routeStage")(sequelize);
 const Destination = require("./destination")(sequelize);
 const Gallery = require("./gallery")(sequelize);
+const TravellerGallery = require("./travellerGallery")(sequelize);
+const InterestGallery = require("./interestGallery")(sequelize);
 const PackageInquiry = require("./packageInquiry")(sequelize);
 
 // Dynamic Form Models
@@ -32,6 +34,8 @@ const models = {
   RouteStage,
   Destination,
   Gallery,
+  TravellerGallery,
+  InterestGallery,
   PackageInquiry,
   // Dynamic Form Models
   Form,
@@ -58,6 +62,8 @@ const initializeModels = async () => {
     await RouteStage.sync({ force: false, alter: false });
     await Destination.sync({ force: false, alter: false });
     await Gallery.sync({ force: false, alter: false });
+    await TravellerGallery.sync({ force: false, alter: false });
+    await InterestGallery.sync({ force: false, alter: false });
     await PackageInquiry.sync({ force: false, alter: false });
 
     // Dynamic Form Models
@@ -138,6 +144,44 @@ const setupAssociations = () => {
       as: "updatedGalleryItems",
     });
     models.Gallery.belongsTo(models.AdminUser, {
+      foreignKey: "updated_by",
+      as: "updater",
+    });
+
+    // TravellerGallery Associations
+    models.AdminUser.hasMany(models.TravellerGallery, {
+      foreignKey: "created_by",
+      as: "createdTravellerGalleryItems",
+    });
+    models.TravellerGallery.belongsTo(models.AdminUser, {
+      foreignKey: "created_by",
+      as: "creator",
+    });
+
+    models.AdminUser.hasMany(models.TravellerGallery, {
+      foreignKey: "updated_by",
+      as: "updatedTravellerGalleryItems",
+    });
+    models.TravellerGallery.belongsTo(models.AdminUser, {
+      foreignKey: "updated_by",
+      as: "updater",
+    });
+
+    // InterestGallery Associations
+    models.AdminUser.hasMany(models.InterestGallery, {
+      foreignKey: "created_by",
+      as: "createdInterestGalleryItems",
+    });
+    models.InterestGallery.belongsTo(models.AdminUser, {
+      foreignKey: "created_by",
+      as: "creator",
+    });
+
+    models.AdminUser.hasMany(models.InterestGallery, {
+      foreignKey: "updated_by",
+      as: "updatedInterestGalleryItems",
+    });
+    models.InterestGallery.belongsTo(models.AdminUser, {
       foreignKey: "updated_by",
       as: "updater",
     });
