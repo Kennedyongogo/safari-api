@@ -9,6 +9,8 @@ const {
   updateDestination,
   deleteDestination,
   getPublicDestinations,
+  getDestinationPackages,
+  getPackagesItinerary,
 } = require("../controllers/destinationController");
 const {
   authenticateAdmin,
@@ -41,6 +43,22 @@ router.get("/public/:slug", getDestinationBySlug);
  * @access  Public
  */
 router.get("/public/id/:id", getPublicDestinationById);
+
+/**
+ * @route   GET /api/destinations/public/:id/packages
+ * @desc    Get all packages from a destination (public)
+ * @access  Public
+ */
+router.get("/public/:id/packages", getDestinationPackages);
+
+/**
+ * @route   GET /api/destinations/public/:id/itineraries
+ * @desc    Get itinerary data for map visualization (public)
+ * @query   packageNumber - optional, filter by package number
+ * @query   categoryName - optional, filter by category name
+ * @access  Public
+ */
+router.get("/public/:id/itineraries", getPackagesItinerary);
 
 // All other routes require admin authentication
 router.use(authenticateAdmin);

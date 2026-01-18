@@ -129,6 +129,41 @@ module.exports = (sequelize) => {
       //         gallery: [
       //           "https://example.com/image1.jpg",
       //           "https://example.com/image2.jpg"
+      //         ],
+      //         itinerary: [
+      //           {
+      //             day: 1,
+      //             description: "Nairobi to Maasai Mara, afternoon game drive",
+      //             start_location: {
+      //               latitude: -1.2921,  // Nairobi
+      //               longitude: 36.8219
+      //             },
+      //             end_location: {
+      //               latitude: -1.4042,  // Maasai Mara
+      //               longitude: 35.0094
+      //             }
+      //           },
+      //           {
+      //             day: 2,
+      //             description: "Full-day game drive with packed lunch",
+      //             start_location: {
+      //               latitude: -1.4042,  // Maasai Mara (same location)
+      //               longitude: 35.0094
+      //             }
+      //             // end_location omitted - means same location as start
+      //           },
+      //           {
+      //             day: 3,
+      //             description: "Morning game drive, return to Nairobi",
+      //             start_location: {
+      //               latitude: -1.4042,  // Maasai Mara
+      //               longitude: 35.0094
+      //             },
+      //             end_location: {
+      //               latitude: -1.2921,  // Nairobi
+      //               longitude: 36.8219
+      //             }
+      //           }
       //         ]
       //       }
       //     ]
@@ -214,6 +249,96 @@ module.exports = (sequelize) => {
                   throw new Error(
                     `Package '${pkg.title}' gallery must be an array if provided`
                   );
+                }
+                // Itinerary is optional, but if provided must be an array with valid day-by-day structure
+                if (pkg.itinerary !== undefined) {
+                  if (!Array.isArray(pkg.itinerary)) {
+                    throw new Error(
+                      `Package '${pkg.title}' itinerary must be an array if provided`
+                    );
+                  }
+                  pkg.itinerary.forEach((day, dayIndex) => {
+                    if (
+                      day.day === undefined ||
+                      typeof day.day !== "number" ||
+                      day.day < 1
+                    ) {
+                      throw new Error(
+                        `Day at index ${dayIndex} in package '${pkg.title}' itinerary must have a valid day number (>= 1)`
+                      );
+                    }
+                    if (!day.description || typeof day.description !== "string") {
+                      throw new Error(
+                        `Day ${day.day} in package '${pkg.title}' itinerary must have a description`
+                      );
+                    }
+                    // Start location is required
+                    if (!day.start_location || typeof day.start_location !== "object") {
+                      throw new Error(
+                        `Day ${day.day} in package '${pkg.title}' itinerary must have a start_location object`
+                      );
+                    }
+                    if (day.start_location.latitude === undefined || typeof day.start_location.latitude !== "number") {
+                      throw new Error(
+                        `Day ${day.day} in package '${pkg.title}' itinerary start_location must have a valid latitude (number)`
+                      );
+                    }
+                    if (
+                      day.start_location.latitude < -90 ||
+                      day.start_location.latitude > 90
+                    ) {
+                      throw new Error(
+                        `Day ${day.day} in package '${pkg.title}' itinerary start_location latitude must be between -90 and 90`
+                      );
+                    }
+                    if (day.start_location.longitude === undefined || typeof day.start_location.longitude !== "number") {
+                      throw new Error(
+                        `Day ${day.day} in package '${pkg.title}' itinerary start_location must have a valid longitude (number)`
+                      );
+                    }
+                    if (
+                      day.start_location.longitude < -180 ||
+                      day.start_location.longitude > 180
+                    ) {
+                      throw new Error(
+                        `Day ${day.day} in package '${pkg.title}' itinerary start_location longitude must be between -180 and 180`
+                      );
+                    }
+                    // End location is optional - if provided, validate it
+                    if (day.end_location !== undefined) {
+                      if (typeof day.end_location !== "object" || day.end_location === null) {
+                        throw new Error(
+                          `Day ${day.day} in package '${pkg.title}' itinerary end_location must be an object if provided`
+                        );
+                      }
+                      if (day.end_location.latitude === undefined || typeof day.end_location.latitude !== "number") {
+                        throw new Error(
+                          `Day ${day.day} in package '${pkg.title}' itinerary end_location must have a valid latitude (number)`
+                        );
+                      }
+                      if (
+                        day.end_location.latitude < -90 ||
+                        day.end_location.latitude > 90
+                      ) {
+                        throw new Error(
+                          `Day ${day.day} in package '${pkg.title}' itinerary end_location latitude must be between -90 and 90`
+                        );
+                      }
+                      if (day.end_location.longitude === undefined || typeof day.end_location.longitude !== "number") {
+                        throw new Error(
+                          `Day ${day.day} in package '${pkg.title}' itinerary end_location must have a valid longitude (number)`
+                        );
+                      }
+                      if (
+                        day.end_location.longitude < -180 ||
+                        day.end_location.longitude > 180
+                      ) {
+                        throw new Error(
+                          `Day ${day.day} in package '${pkg.title}' itinerary end_location longitude must be between -180 and 180`
+                        );
+                      }
+                    }
+                  });
                 }
                 pkg.pricing_tiers.forEach((pricing, pricingIndex) => {
                   if (!pricing.tier || typeof pricing.tier !== "string") {

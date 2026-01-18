@@ -683,6 +683,146 @@ const getPublicDestinations = async (req, res) => {
   }
 };
 
+// Get all packages from a destination (flattened list)
+const getDestinationPackages = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const destination = await Destination.findByPk(id);
+
+    if (!destination) {
+      return res.status(404).json({
+        success: false,
+        message: "Destination not found",
+      });
+    }
+
+    // Extract all packages from categories and flatten them
+    const packagesList = [];
+    if (Array.isArray(destination.packages)) {
+      destination.packages.forEach((category) => {
+        if (Array.isArray(category.packages)) {
+          category.packages.forEach((pkg) => {
+            packagesList.push({
+              ...pkg,
+              destinationId: destination.id,
+              destinationTitle: destination.title,
+              destinationSlug: destination.slug,
+              categoryName: category.category_name,
+              categoryOrder: category.category_order,
+            });
+          });
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: packagesList,
+      destination: {
+        id: destination.id,
+        title: destination.title,
+        slug: destination.slug,
+        location: destination.location,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching destination packages:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch packages",
+      error: error.message,
+    });
+  }
+};
+
+// Get itinerary data for map visualization
+// Can fetch itinerary for a specific package or all packages in a destination
+const getPackagesItinerary = async (req, res) => {
+  try {
+    const { id } = req.params; // destination id
+    const { packageNumber, categoryName } = req.query; // optional filters
+
+    const destination = await Destination.findByPk(id);
+
+    if (!destination) {
+      return res.status(404).json({
+        success: false,
+        message: "Destination not found",
+      });
+    }
+
+    // Extract itinerary data from packages
+    const itineraries = [];
+    
+    if (Array.isArray(destination.packages)) {
+      destination.packages.forEach((category) => {
+        // Filter by category if specified
+        if (categoryName && category.category_name !== categoryName) {
+          return;
+        }
+
+        if (Array.isArray(category.packages)) {
+          category.packages.forEach((pkg) => {
+            // Filter by package number if specified
+            if (packageNumber && pkg.number !== parseInt(packageNumber)) {
+              return;
+            }
+
+            // Only include packages that have itinerary data
+            if (pkg.itinerary && Array.isArray(pkg.itinerary) && pkg.itinerary.length > 0) {
+              itineraries.push({
+                packageId: `${destination.id}-${category.category_name}-${pkg.number}`,
+                packageNumber: pkg.number,
+                packageTitle: pkg.title,
+                categoryName: category.category_name,
+                destinationId: destination.id,
+                destinationTitle: destination.title,
+                itinerary: pkg.itinerary.map((day) => {
+                  const dayData = {
+                    day: day.day,
+                    description: day.description,
+                    start_location: {
+                      lat: day.start_location?.latitude || 0,
+                      lng: day.start_location?.longitude || 0,
+                    },
+                  };
+                  // Include end_location if it exists
+                  if (day.end_location) {
+                    dayData.end_location = {
+                      lat: day.end_location.latitude || 0,
+                      lng: day.end_location.longitude || 0,
+                    };
+                  }
+                  return dayData;
+                }),
+              });
+            }
+          });
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: itineraries,
+      destination: {
+        id: destination.id,
+        title: destination.title,
+        slug: destination.slug,
+        location: destination.location,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching packages itinerary:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch itinerary data",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createDestination,
   getAllDestinations,
@@ -692,4 +832,6 @@ module.exports = {
   updateDestination,
   deleteDestination,
   getPublicDestinations,
+  getDestinationPackages,
+  getPackagesItinerary,
 };
