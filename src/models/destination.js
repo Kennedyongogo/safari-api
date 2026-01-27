@@ -133,7 +133,8 @@ module.exports = (sequelize) => {
       //         itinerary: [
       //           {
       //             day: 1,
-      //             description: "Nairobi to Maasai Mara, afternoon game drive",
+      //             title: "Day 1: Nairobi to Maasai Mara",
+      //             description: "Depart Nairobi in the morning for a scenic drive...",
       //             start_location: {
       //               latitude: -1.2921,  // Nairobi
       //               longitude: 36.8219
