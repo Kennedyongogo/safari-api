@@ -3,11 +3,7 @@ const { Op } = require("sequelize");
 const path = require("path");
 const { convertToRelativePath } = require("../utils/filePath");
 const { deleteFile } = require("../middleware/upload");
-const {
-  logCreate,
-  logUpdate,
-  logDelete,
-} = require("../utils/auditLogger");
+const { logCreate, logUpdate, logDelete } = require("../utils/auditLogger");
 
 // Get valid package categories from the model
 const PACKAGE_CATEGORIES = Destination.PACKAGE_CATEGORIES || [
@@ -32,7 +28,7 @@ const PACKAGE_CATEGORIES = Destination.PACKAGE_CATEGORIES || [
   // Rwanda categories
   "GORILLA & PRIMATE SAFARIS",
   "WILDLIFE & SCENIC SAFARIS",
-  "CULTURE, SCENERY & RELAXATION"
+  "CULTURE, SCENERY & RELAXATION",
 ];
 
 // Validate package categories
@@ -43,7 +39,10 @@ const validatePackageCategories = (packages) => {
 
   for (let i = 0; i < packages.length; i++) {
     const category = packages[i];
-    if (category.category_name && !PACKAGE_CATEGORIES.includes(category.category_name)) {
+    if (
+      category.category_name &&
+      !PACKAGE_CATEGORIES.includes(category.category_name)
+    ) {
       return {
         valid: false,
         error: `Invalid category '${category.category_name}' at index ${i}. Allowed categories: ${PACKAGE_CATEGORIES.join(", ")}`,
@@ -103,7 +102,7 @@ const createDestination = async (req, res) => {
     // Handle multiple gallery image uploads
     if (req.files && req.files.gallery_images) {
       const uploadedGalleryImages = req.files.gallery_images.map((file) =>
-        convertToRelativePath(file.path)
+        convertToRelativePath(file.path),
       );
       galleryImagesArray = [...galleryImagesArray, ...uploadedGalleryImages];
     }
@@ -112,7 +111,7 @@ const createDestination = async (req, res) => {
     const parsePackages = (packagesData) => {
       if (!packagesData) return [];
       if (Array.isArray(packagesData)) return packagesData;
-      if (typeof packagesData === 'string') {
+      if (typeof packagesData === "string") {
         try {
           return JSON.parse(packagesData);
         } catch (e) {
@@ -127,17 +126,17 @@ const createDestination = async (req, res) => {
     const collectPackageGalleryImages = () => {
       const packageImages = {};
       if (req.files) {
-        Object.keys(req.files).forEach(key => {
-          if (key.startsWith('package_gallery_')) {
-            const parts = key.replace('package_gallery_', '').split('_');
+        Object.keys(req.files).forEach((key) => {
+          if (key.startsWith("package_gallery_")) {
+            const parts = key.replace("package_gallery_", "").split("_");
             if (parts.length === 2) {
               const catIndex = parseInt(parts[0]);
               const pkgIndex = parseInt(parts[1]);
               if (!packageImages[catIndex]) {
                 packageImages[catIndex] = {};
               }
-              packageImages[catIndex][pkgIndex] = req.files[key].map(file => 
-                convertToRelativePath(file.path)
+              packageImages[catIndex][pkgIndex] = req.files[key].map((file) =>
+                convertToRelativePath(file.path),
               );
             }
           }
@@ -173,38 +172,52 @@ const createDestination = async (req, res) => {
           const existingGallery = Array.isArray(pkg.gallery) ? pkg.gallery : [];
           return {
             ...pkg,
-            gallery: [...existingGallery, ...newGalleryImages]
+            gallery: [...existingGallery, ...newGalleryImages],
           };
         });
 
         return {
           ...category,
-          packages: updatedPackages
+          packages: updatedPackages,
         };
       });
 
       return parsedPackages;
     };
 
-    const destination = await Destination.create({
-      title,
-      subtitle,
-      slug: slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-      brief_description,
-      location,
-      hero_image: heroImagePath,
-      hero_image_alt: hero_image_alt || `${title} destination`,
-      gallery_images: galleryImagesArray,
-      packages: processPackages(packages),
-      is_active: is_active !== undefined ? is_active : true,
-      sort_order: sort_order ? parseInt(sort_order) : 0,
-    }, { transaction });
+    const destination = await Destination.create(
+      {
+        title,
+        subtitle,
+        slug:
+          slug ||
+          title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, ""),
+        brief_description,
+        location,
+        hero_image: heroImagePath,
+        hero_image_alt: hero_image_alt || `${title} destination`,
+        gallery_images: galleryImagesArray,
+        packages: processPackages(packages),
+        is_active: is_active !== undefined ? is_active : true,
+        sort_order: sort_order ? parseInt(sort_order) : 0,
+      },
+      { transaction },
+    );
 
     // Log the creation
-    await logCreate(req.user?.id, 'destination', destination.id, {
-      title: destination.title,
-      location: destination.location,
-    }, req);
+    await logCreate(
+      req.user?.id,
+      "destination",
+      destination.id,
+      {
+        title: destination.title,
+        location: destination.location,
+      },
+      req,
+    );
 
     await transaction.commit();
 
@@ -233,8 +246,8 @@ const getAllDestinations = async (req, res) => {
       search,
       location,
       is_active,
-      sort_by = 'sort_order',
-      sort_order = 'ASC',
+      sort_by = "sort_order",
+      sort_order = "ASC",
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -255,7 +268,7 @@ const getAllDestinations = async (req, res) => {
     }
 
     if (is_active !== undefined) {
-      whereClause.is_active = is_active === 'true';
+      whereClause.is_active = is_active === "true";
     }
 
     const { count, rows: destinations } = await Destination.findAndCountAll({
@@ -364,7 +377,9 @@ const updateDestination = async (req, res) => {
     if (updates.hero_image !== undefined) {
       // If there's a new file upload, use that
       if (req.files && req.files.hero_image && req.files.hero_image[0]) {
-        updates.hero_image = convertToRelativePath(req.files.hero_image[0].path);
+        updates.hero_image = convertToRelativePath(
+          req.files.hero_image[0].path,
+        );
       }
       // If hero_image is sent as empty string, keep it as empty (for deletion)
       // If hero_image has a value, keep the existing value
@@ -374,7 +389,7 @@ const updateDestination = async (req, res) => {
     const parseJsonObject = (value) => {
       if (!value) return undefined;
       if (Array.isArray(value)) return value;
-      if (typeof value === 'string') {
+      if (typeof value === "string") {
         try {
           return JSON.parse(value);
         } catch (e) {
@@ -389,17 +404,17 @@ const updateDestination = async (req, res) => {
     const collectPackageGalleryImages = () => {
       const packageImages = {};
       if (req.files) {
-        Object.keys(req.files).forEach(key => {
-          if (key.startsWith('package_gallery_')) {
-            const parts = key.replace('package_gallery_', '').split('_');
+        Object.keys(req.files).forEach((key) => {
+          if (key.startsWith("package_gallery_")) {
+            const parts = key.replace("package_gallery_", "").split("_");
             if (parts.length === 2) {
               const catIndex = parseInt(parts[0]);
               const pkgIndex = parseInt(parts[1]);
               if (!packageImages[catIndex]) {
                 packageImages[catIndex] = {};
               }
-              packageImages[catIndex][pkgIndex] = req.files[key].map(file => 
-                convertToRelativePath(file.path)
+              packageImages[catIndex][pkgIndex] = req.files[key].map((file) =>
+                convertToRelativePath(file.path),
               );
             }
           }
@@ -415,7 +430,9 @@ const updateDestination = async (req, res) => {
       let parsedPackages = parseJsonObject(packagesData);
       if (!Array.isArray(parsedPackages)) {
         // If not provided, use existing packages
-        parsedPackages = Array.isArray(existingPackages) ? existingPackages : [];
+        parsedPackages = Array.isArray(existingPackages)
+          ? existingPackages
+          : [];
       }
 
       // Validate package categories
@@ -436,13 +453,13 @@ const updateDestination = async (req, res) => {
           const existingGallery = Array.isArray(pkg.gallery) ? pkg.gallery : [];
           return {
             ...pkg,
-            gallery: [...existingGallery, ...newGalleryImages]
+            gallery: [...existingGallery, ...newGalleryImages],
           };
         });
 
         return {
           ...category,
-          packages: updatedPackages
+          packages: updatedPackages,
         };
       });
 
@@ -458,87 +475,142 @@ const updateDestination = async (req, res) => {
     // Then append new uploaded files to that list
     if (req.files && req.files.gallery_images) {
       const uploadedGalleryImages = req.files.gallery_images.map((file) =>
-        convertToRelativePath(file.path)
+        convertToRelativePath(file.path),
       );
       // Use the parsed gallery_images from frontend (which already has deletions applied)
       // If not provided, fall back to existing gallery from database
-      const currentGallery = Array.isArray(updates.gallery_images) 
-        ? updates.gallery_images 
-        : (Array.isArray(destination.gallery_images) ? destination.gallery_images : []);
+      const currentGallery = Array.isArray(updates.gallery_images)
+        ? updates.gallery_images
+        : Array.isArray(destination.gallery_images)
+          ? destination.gallery_images
+          : [];
       updates.gallery_images = [...currentGallery, ...uploadedGalleryImages];
     }
 
     // Auto-populate hero image from first gallery image if hero image is empty and gallery images exist
-    if ((!updates.hero_image || updates.hero_image === '') &&
-        updates.gallery_images &&
-        Array.isArray(updates.gallery_images) &&
-        updates.gallery_images.length > 0) {
+    if (
+      (!updates.hero_image || updates.hero_image === "") &&
+      updates.gallery_images &&
+      Array.isArray(updates.gallery_images) &&
+      updates.gallery_images.length > 0
+    ) {
       updates.hero_image = updates.gallery_images[0];
     }
 
     // Handle packages separately to merge uploaded gallery images
     if (updates.packages !== undefined) {
-      updates.packages = processPackages(updates.packages, destination.packages);
+      updates.packages = processPackages(
+        updates.packages,
+        destination.packages,
+      );
     }
 
     // Update slug if title changed
     if (updates.title && updates.title !== destination.title) {
-      updates.slug = updates.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      updates.slug = updates.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
     }
 
     // Save old values BEFORE updating (needed for file deletion comparison)
     const oldHeroImage = destination.hero_image;
-    const oldGalleryImages = Array.isArray(destination.gallery_images) ? destination.gallery_images : [];
-    const oldPackages = Array.isArray(destination.packages) ? destination.packages : [];
+    const oldGalleryImages = Array.isArray(destination.gallery_images)
+      ? destination.gallery_images
+      : [];
+    const oldPackages = Array.isArray(destination.packages)
+      ? destination.packages
+      : [];
 
     await destination.update(updates, { transaction });
 
     // Handle file deletion for removed images (after successful database update)
 
     // Delete hero image if it was changed or removed
-    if (oldHeroImage && (!updates.hero_image || updates.hero_image !== oldHeroImage)) {
-      const fullPath = oldHeroImage.startsWith('uploads/') ? oldHeroImage : `uploads/destinations/${oldHeroImage}`;
-      await deleteFile(path.join(__dirname, '..', '..', fullPath));
+    if (
+      oldHeroImage &&
+      (!updates.hero_image || updates.hero_image !== oldHeroImage)
+    ) {
+      const fullPath = oldHeroImage.startsWith("uploads/")
+        ? oldHeroImage
+        : `uploads/destinations/${oldHeroImage}`;
+      await deleteFile(path.join(__dirname, "..", "..", fullPath));
     }
 
     // Delete gallery images that were removed
     if (updates.gallery_images !== undefined) {
-      const newGalleryImages = Array.isArray(updates.gallery_images) ? updates.gallery_images : [];
-      const imagesToDelete = oldGalleryImages.filter(oldImg => !newGalleryImages.includes(oldImg));
+      const newGalleryImages = Array.isArray(updates.gallery_images)
+        ? updates.gallery_images
+        : [];
+      const imagesToDelete = oldGalleryImages.filter(
+        (oldImg) => !newGalleryImages.includes(oldImg),
+      );
       for (const imagePath of imagesToDelete) {
-        const fullPath = imagePath.startsWith('uploads/') ? imagePath : `uploads/destinations/${imagePath}`;
-        await deleteFile(path.join(__dirname, '..', '..', fullPath));
+        const fullPath = imagePath.startsWith("uploads/")
+          ? imagePath
+          : `uploads/destinations/${imagePath}`;
+        await deleteFile(path.join(__dirname, "..", "..", fullPath));
       }
     }
 
     // Delete package gallery images that were removed
     if (updates.packages !== undefined && Array.isArray(updates.packages)) {
-      const newPackages = Array.isArray(updates.packages) ? updates.packages : [];
-      
+      const newPackages = Array.isArray(updates.packages)
+        ? updates.packages
+        : [];
+
       // Compare old and new packages to find deleted gallery images
-      for (let catIndex = 0; catIndex < Math.max(oldPackages.length, newPackages.length); catIndex++) {
+      for (
+        let catIndex = 0;
+        catIndex < Math.max(oldPackages.length, newPackages.length);
+        catIndex++
+      ) {
         const oldCategory = oldPackages[catIndex] || {};
         const newCategory = newPackages[catIndex] || {};
-        const oldCategoryPackages = Array.isArray(oldCategory.packages) ? oldCategory.packages : [];
-        const newCategoryPackages = Array.isArray(newCategory.packages) ? newCategory.packages : [];
+        const oldCategoryPackages = Array.isArray(oldCategory.packages)
+          ? oldCategory.packages
+          : [];
+        const newCategoryPackages = Array.isArray(newCategory.packages)
+          ? newCategory.packages
+          : [];
 
-        for (let pkgIndex = 0; pkgIndex < Math.max(oldCategoryPackages.length, newCategoryPackages.length); pkgIndex++) {
+        for (
+          let pkgIndex = 0;
+          pkgIndex <
+          Math.max(oldCategoryPackages.length, newCategoryPackages.length);
+          pkgIndex++
+        ) {
           const oldPackage = oldCategoryPackages[pkgIndex] || {};
           const newPackage = newCategoryPackages[pkgIndex] || {};
-          const oldGallery = Array.isArray(oldPackage.gallery) ? oldPackage.gallery.filter(img => typeof img === 'string') : [];
-          const newGallery = Array.isArray(newPackage.gallery) ? newPackage.gallery.filter(img => typeof img === 'string') : [];
+          const oldGallery = Array.isArray(oldPackage.gallery)
+            ? oldPackage.gallery.filter((img) => typeof img === "string")
+            : [];
+          const newGallery = Array.isArray(newPackage.gallery)
+            ? newPackage.gallery.filter((img) => typeof img === "string")
+            : [];
 
-          const imagesToDelete = oldGallery.filter(oldImg => !newGallery.includes(oldImg));
+          const imagesToDelete = oldGallery.filter(
+            (oldImg) => !newGallery.includes(oldImg),
+          );
           for (const imagePath of imagesToDelete) {
-            const fullPath = imagePath.startsWith('uploads/') ? imagePath : `uploads/destinations/${imagePath}`;
-            await deleteFile(path.join(__dirname, '..', '..', fullPath));
+            const fullPath = imagePath.startsWith("uploads/")
+              ? imagePath
+              : `uploads/destinations/${imagePath}`;
+            await deleteFile(path.join(__dirname, "..", "..", fullPath));
           }
         }
       }
     }
 
     // Log the update
-    await logUpdate(req.user?.id, 'destination', destination.id, null, updates, req);
+    await logUpdate(
+      req.user?.id,
+      "destination",
+      destination.id,
+      null,
+      updates,
+      req,
+    );
 
     await transaction.commit();
 
@@ -619,11 +691,13 @@ const deleteDestination = async (req, res) => {
 
     // Add package gallery images
     if (Array.isArray(destination.packages)) {
-      destination.packages.forEach(category => {
+      destination.packages.forEach((category) => {
         if (Array.isArray(category.packages)) {
-          category.packages.forEach(pkg => {
+          category.packages.forEach((pkg) => {
             if (Array.isArray(pkg.gallery)) {
-              imagesToDelete.push(...pkg.gallery.filter(img => typeof img === 'string'));
+              imagesToDelete.push(
+                ...pkg.gallery.filter((img) => typeof img === "string"),
+              );
             }
           });
         }
@@ -632,15 +706,23 @@ const deleteDestination = async (req, res) => {
 
     // Delete all image files
     for (const imagePath of imagesToDelete) {
-      const fullPath = imagePath.startsWith('uploads/') ? imagePath : `uploads/destinations/${imagePath}`;
-      await deleteFile(path.join(__dirname, '..', '..', fullPath));
+      const fullPath = imagePath.startsWith("uploads/")
+        ? imagePath
+        : `uploads/destinations/${imagePath}`;
+      await deleteFile(path.join(__dirname, "..", "..", fullPath));
     }
 
     // Log the deletion before destroying
-    await logDelete(req.user?.id, 'destination', destination.id, {
-      title: destination.title,
-      location: destination.location,
-    }, req);
+    await logDelete(
+      req.user?.id,
+      "destination",
+      destination.id,
+      {
+        title: destination.title,
+        location: destination.location,
+      },
+      req,
+    );
 
     await destination.destroy({ transaction });
 
@@ -666,7 +748,10 @@ const getPublicDestinations = async (req, res) => {
   try {
     const destinations = await Destination.findAll({
       where: { is_active: true },
-      order: [['sort_order', 'ASC'], ['createdAt', 'DESC']],
+      order: [
+        ["sort_order", "ASC"],
+        ["createdAt", "DESC"],
+      ],
     });
 
     res.json({
@@ -754,7 +839,7 @@ const getPackagesItinerary = async (req, res) => {
 
     // Extract itinerary data from packages
     const itineraries = [];
-    
+
     if (Array.isArray(destination.packages)) {
       destination.packages.forEach((category) => {
         // Filter by category if specified
@@ -770,7 +855,11 @@ const getPackagesItinerary = async (req, res) => {
             }
 
             // Only include packages that have itinerary data
-            if (pkg.itinerary && Array.isArray(pkg.itinerary) && pkg.itinerary.length > 0) {
+            if (
+              pkg.itinerary &&
+              Array.isArray(pkg.itinerary) &&
+              pkg.itinerary.length > 0
+            ) {
               itineraries.push({
                 packageId: `${destination.id}-${category.category_name}-${pkg.number}`,
                 packageNumber: pkg.number,
@@ -787,6 +876,15 @@ const getPackagesItinerary = async (req, res) => {
                       lng: day.start_location?.longitude || 0,
                     },
                   };
+                  if (day.title != null) dayData.title = day.title;
+                  // Combined days (e.g. Day 7–9)
+                  if (
+                    day.day_end != null &&
+                    typeof day.day_end === "number" &&
+                    day.day_end > day.day
+                  ) {
+                    dayData.day_end = day.day_end;
+                  }
                   // Include end_location if it exists
                   if (day.end_location) {
                     dayData.end_location = {

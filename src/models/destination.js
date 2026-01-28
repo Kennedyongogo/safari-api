@@ -25,7 +25,7 @@ module.exports = (sequelize) => {
     // Rwanda categories
     "GORILLA & PRIMATE SAFARIS",
     "WILDLIFE & SCENIC SAFARIS",
-    "CULTURE, SCENERY & RELAXATION"
+    "CULTURE, SCENERY & RELAXATION",
   );
 
   // Array version for validation and frontend use
@@ -187,7 +187,7 @@ module.exports = (sequelize) => {
                 typeof category.category_name !== "string"
               ) {
                 throw new Error(
-                  `Category at index ${catIndex} must have a valid category_name`
+                  `Category at index ${catIndex} must have a valid category_name`,
                 );
               }
               // Validate category name against predefined categories
@@ -196,8 +196,8 @@ module.exports = (sequelize) => {
                   `Invalid category_name '${
                     category.category_name
                   }' at index ${catIndex}. Allowed categories: ${PACKAGE_CATEGORIES.join(
-                    ", "
-                  )}`
+                    ", ",
+                  )}`,
                 );
               }
               if (
@@ -205,12 +205,12 @@ module.exports = (sequelize) => {
                 typeof category.category_order !== "number"
               ) {
                 throw new Error(
-                  `Category at index ${catIndex} must have a valid category_order`
+                  `Category at index ${catIndex} must have a valid category_order`,
                 );
               }
               if (!Array.isArray(category.packages)) {
                 throw new Error(
-                  `Category '${category.category_name}' must have a packages array`
+                  `Category '${category.category_name}' must have a packages array`,
                 );
               }
               category.packages.forEach((pkg, pkgIndex) => {
@@ -219,12 +219,12 @@ module.exports = (sequelize) => {
                   typeof pkg.number !== "number"
                 ) {
                   throw new Error(
-                    `Package at index ${pkgIndex} in category '${category.category_name}' must have a number`
+                    `Package at index ${pkgIndex} in category '${category.category_name}' must have a number`,
                   );
                 }
                 if (!pkg.title || typeof pkg.title !== "string") {
                   throw new Error(
-                    `Package at index ${pkgIndex} in category '${category.category_name}' must have a title`
+                    `Package at index ${pkgIndex} in category '${category.category_name}' must have a title`,
                   );
                 }
                 if (
@@ -232,30 +232,30 @@ module.exports = (sequelize) => {
                   typeof pkg.short_description !== "string"
                 ) {
                   throw new Error(
-                    `Package at index ${pkgIndex} in category '${category.category_name}' must have a short_description`
+                    `Package at index ${pkgIndex} in category '${category.category_name}' must have a short_description`,
                   );
                 }
                 if (!Array.isArray(pkg.highlights)) {
                   throw new Error(
-                    `Package '${pkg.title}' must have a highlights array`
+                    `Package '${pkg.title}' must have a highlights array`,
                   );
                 }
                 if (!Array.isArray(pkg.pricing_tiers)) {
                   throw new Error(
-                    `Package '${pkg.title}' must have a pricing_tiers array`
+                    `Package '${pkg.title}' must have a pricing_tiers array`,
                   );
                 }
                 // Gallery is optional, but if provided must be an array
                 if (pkg.gallery !== undefined && !Array.isArray(pkg.gallery)) {
                   throw new Error(
-                    `Package '${pkg.title}' gallery must be an array if provided`
+                    `Package '${pkg.title}' gallery must be an array if provided`,
                   );
                 }
                 // Itinerary is optional, but if provided must be an array with valid day-by-day structure
                 if (pkg.itinerary !== undefined) {
                   if (!Array.isArray(pkg.itinerary)) {
                     throw new Error(
-                      `Package '${pkg.title}' itinerary must be an array if provided`
+                      `Package '${pkg.title}' itinerary must be an array if provided`,
                     );
                   }
                   pkg.itinerary.forEach((day, dayIndex) => {
@@ -265,23 +265,45 @@ module.exports = (sequelize) => {
                       day.day < 1
                     ) {
                       throw new Error(
-                        `Day at index ${dayIndex} in package '${pkg.title}' itinerary must have a valid day number (>= 1)`
+                        `Day at index ${dayIndex} in package '${pkg.title}' itinerary must have a valid day number (>= 1)`,
                       );
                     }
-                    if (!day.description || typeof day.description !== "string") {
+                    // Optional day_end for combined days (e.g. "Day 7–9")
+                    if (day.day_end !== undefined) {
+                      if (typeof day.day_end !== "number" || day.day_end < 1) {
+                        throw new Error(
+                          `Day ${day.day} in package '${pkg.title}' itinerary day_end must be a positive number if provided`,
+                        );
+                      }
+                      if (day.day_end < day.day) {
+                        throw new Error(
+                          `Day ${day.day} in package '${pkg.title}' itinerary day_end (${day.day_end}) must be >= day`,
+                        );
+                      }
+                    }
+                    if (
+                      !day.description ||
+                      typeof day.description !== "string"
+                    ) {
                       throw new Error(
-                        `Day ${day.day} in package '${pkg.title}' itinerary must have a description`
+                        `Day ${day.day} in package '${pkg.title}' itinerary must have a description`,
                       );
                     }
                     // Start location is required
-                    if (!day.start_location || typeof day.start_location !== "object") {
+                    if (
+                      !day.start_location ||
+                      typeof day.start_location !== "object"
+                    ) {
                       throw new Error(
-                        `Day ${day.day} in package '${pkg.title}' itinerary must have a start_location object`
+                        `Day ${day.day} in package '${pkg.title}' itinerary must have a start_location object`,
                       );
                     }
-                    if (day.start_location.latitude === undefined || typeof day.start_location.latitude !== "number") {
+                    if (
+                      day.start_location.latitude === undefined ||
+                      typeof day.start_location.latitude !== "number"
+                    ) {
                       throw new Error(
-                        `Day ${day.day} in package '${pkg.title}' itinerary start_location must have a valid latitude (number)`
+                        `Day ${day.day} in package '${pkg.title}' itinerary start_location must have a valid latitude (number)`,
                       );
                     }
                     if (
@@ -289,12 +311,15 @@ module.exports = (sequelize) => {
                       day.start_location.latitude > 90
                     ) {
                       throw new Error(
-                        `Day ${day.day} in package '${pkg.title}' itinerary start_location latitude must be between -90 and 90`
+                        `Day ${day.day} in package '${pkg.title}' itinerary start_location latitude must be between -90 and 90`,
                       );
                     }
-                    if (day.start_location.longitude === undefined || typeof day.start_location.longitude !== "number") {
+                    if (
+                      day.start_location.longitude === undefined ||
+                      typeof day.start_location.longitude !== "number"
+                    ) {
                       throw new Error(
-                        `Day ${day.day} in package '${pkg.title}' itinerary start_location must have a valid longitude (number)`
+                        `Day ${day.day} in package '${pkg.title}' itinerary start_location must have a valid longitude (number)`,
                       );
                     }
                     if (
@@ -302,19 +327,25 @@ module.exports = (sequelize) => {
                       day.start_location.longitude > 180
                     ) {
                       throw new Error(
-                        `Day ${day.day} in package '${pkg.title}' itinerary start_location longitude must be between -180 and 180`
+                        `Day ${day.day} in package '${pkg.title}' itinerary start_location longitude must be between -180 and 180`,
                       );
                     }
                     // End location is optional - if provided, validate it
                     if (day.end_location !== undefined) {
-                      if (typeof day.end_location !== "object" || day.end_location === null) {
+                      if (
+                        typeof day.end_location !== "object" ||
+                        day.end_location === null
+                      ) {
                         throw new Error(
-                          `Day ${day.day} in package '${pkg.title}' itinerary end_location must be an object if provided`
+                          `Day ${day.day} in package '${pkg.title}' itinerary end_location must be an object if provided`,
                         );
                       }
-                      if (day.end_location.latitude === undefined || typeof day.end_location.latitude !== "number") {
+                      if (
+                        day.end_location.latitude === undefined ||
+                        typeof day.end_location.latitude !== "number"
+                      ) {
                         throw new Error(
-                          `Day ${day.day} in package '${pkg.title}' itinerary end_location must have a valid latitude (number)`
+                          `Day ${day.day} in package '${pkg.title}' itinerary end_location must have a valid latitude (number)`,
                         );
                       }
                       if (
@@ -322,12 +353,15 @@ module.exports = (sequelize) => {
                         day.end_location.latitude > 90
                       ) {
                         throw new Error(
-                          `Day ${day.day} in package '${pkg.title}' itinerary end_location latitude must be between -90 and 90`
+                          `Day ${day.day} in package '${pkg.title}' itinerary end_location latitude must be between -90 and 90`,
                         );
                       }
-                      if (day.end_location.longitude === undefined || typeof day.end_location.longitude !== "number") {
+                      if (
+                        day.end_location.longitude === undefined ||
+                        typeof day.end_location.longitude !== "number"
+                      ) {
                         throw new Error(
-                          `Day ${day.day} in package '${pkg.title}' itinerary end_location must have a valid longitude (number)`
+                          `Day ${day.day} in package '${pkg.title}' itinerary end_location must have a valid longitude (number)`,
                         );
                       }
                       if (
@@ -335,7 +369,7 @@ module.exports = (sequelize) => {
                         day.end_location.longitude > 180
                       ) {
                         throw new Error(
-                          `Day ${day.day} in package '${pkg.title}' itinerary end_location longitude must be between -180 and 180`
+                          `Day ${day.day} in package '${pkg.title}' itinerary end_location longitude must be between -180 and 180`,
                         );
                       }
                     }
@@ -344,7 +378,7 @@ module.exports = (sequelize) => {
                 pkg.pricing_tiers.forEach((pricing, pricingIndex) => {
                   if (!pricing.tier || typeof pricing.tier !== "string") {
                     throw new Error(
-                      `Pricing tier at index ${pricingIndex} in package '${pkg.title}' must have a tier`
+                      `Pricing tier at index ${pricingIndex} in package '${pkg.title}' must have a tier`,
                     );
                   }
                   if (
@@ -352,7 +386,7 @@ module.exports = (sequelize) => {
                     typeof pricing.price_range !== "string"
                   ) {
                     throw new Error(
-                      `Pricing tier at index ${pricingIndex} in package '${pkg.title}' must have a price_range`
+                      `Pricing tier at index ${pricingIndex} in package '${pkg.title}' must have a price_range`,
                     );
                   }
                 });
@@ -394,7 +428,7 @@ module.exports = (sequelize) => {
           fields: ["sort_order"],
         },
       ],
-    }
+    },
   );
 
   // Export categories for use in other parts of the application
