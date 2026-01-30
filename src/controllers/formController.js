@@ -1,23 +1,27 @@
 const { Form, FormField, FieldOption, FormSubmission } = require("../models");
 const { Op } = require("sequelize");
+const nodemailer = require("nodemailer");
+const config = require("../config/config");
 
 // Admin: Clean up orphaned form fields (fields that belong to non-existent forms)
 const cleanupOrphanedFields = async (req, res) => {
   try {
     // Find all form fields
     const allFields = await FormField.findAll({
-      attributes: ['id', 'form_id'],
+      attributes: ["id", "form_id"],
     });
 
     // Get all existing form IDs
     const existingForms = await Form.findAll({
-      attributes: ['id'],
+      attributes: ["id"],
     });
 
-    const existingFormIds = new Set(existingForms.map(form => form.id));
+    const existingFormIds = new Set(existingForms.map((form) => form.id));
 
     // Find orphaned fields (fields whose form_id doesn't exist)
-    const orphanedFields = allFields.filter(field => !existingFormIds.has(field.form_id));
+    const orphanedFields = allFields.filter(
+      (field) => !existingFormIds.has(field.form_id),
+    );
 
     if (orphanedFields.length === 0) {
       return res.json({
@@ -27,11 +31,11 @@ const cleanupOrphanedFields = async (req, res) => {
     }
 
     // Delete orphaned fields (this will also cascade delete their options)
-    const orphanedFieldIds = orphanedFields.map(field => field.id);
+    const orphanedFieldIds = orphanedFields.map((field) => field.id);
     await FormField.destroy({
       where: {
-        id: { [Op.in]: orphanedFieldIds }
-      }
+        id: { [Op.in]: orphanedFieldIds },
+      },
     });
 
     res.json({
@@ -156,7 +160,14 @@ const getFormById = async (req, res) => {
 // Admin: Create new form
 const createForm = async (req, res) => {
   try {
-    const { title, description, slug, success_message, submit_button_text, is_active } = req.body;
+    const {
+      title,
+      description,
+      slug,
+      success_message,
+      submit_button_text,
+      is_active,
+    } = req.body;
     const created_by = req.user?.id;
 
     // Auto-generate title if not provided
@@ -168,13 +179,18 @@ const createForm = async (req, res) => {
     // The cascade relationships should handle deleting fields and options automatically
     await Form.destroy({
       where: {},
-      cascade: true
+      cascade: true,
     });
 
     const form = await Form.create({
       title: formTitle,
       description: description || null,
-      slug: slug || formTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+      slug:
+        slug ||
+        formTitle
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, ""),
       success_message: success_message || "Thank you for your submission!",
       submit_button_text: submit_button_text || "Submit",
       is_active: formActive,
@@ -201,7 +217,14 @@ const createForm = async (req, res) => {
 const updateForm = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, slug, is_active, success_message, submit_button_text } = req.body;
+    const {
+      title,
+      description,
+      slug,
+      is_active,
+      success_message,
+      submit_button_text,
+    } = req.body;
     const updated_by = req.user?.id;
 
     const form = await Form.findByPk(id);
@@ -219,9 +242,9 @@ const updateForm = async (req, res) => {
         {
           where: {
             is_active: true,
-            id: { [Op.ne]: id } // Don't deactivate the form we're updating
-          }
-        }
+            id: { [Op.ne]: id }, // Don't deactivate the form we're updating
+          },
+        },
       );
     }
 
@@ -231,8 +254,10 @@ const updateForm = async (req, res) => {
     if (description !== undefined) updateData.description = description;
     if (slug !== undefined) updateData.slug = slug;
     if (is_active !== undefined) updateData.is_active = is_active;
-    if (success_message !== undefined) updateData.success_message = success_message;
-    if (submit_button_text !== undefined) updateData.submit_button_text = submit_button_text;
+    if (success_message !== undefined)
+      updateData.success_message = success_message;
+    if (submit_button_text !== undefined)
+      updateData.submit_button_text = submit_button_text;
 
     await form.update(updateData);
 
@@ -268,25 +293,25 @@ const deleteForm = async (req, res) => {
     // 1. Delete field options first
     const formFields = await FormField.findAll({
       where: { form_id: id },
-      attributes: ['id']
+      attributes: ["id"],
     });
 
     await FieldOption.destroy({
       where: {
         form_field_id: {
-          [Op.in]: formFields.map(field => field.id)
-        }
-      }
+          [Op.in]: formFields.map((field) => field.id),
+        },
+      },
     });
 
     // 2. Delete form fields
     await FormField.destroy({
-      where: { form_id: id }
+      where: { form_id: id },
     });
 
     // 3. Delete form submissions
     await FormSubmission.destroy({
-      where: { form_id: id }
+      where: { form_id: id },
     });
 
     // 4. Finally delete the form itself
@@ -534,7 +559,6 @@ const getPublicForm = async (req, res) => {
   }
 };
 
-
 // Public: Submit form
 const submitForm = async (req, res) => {
   try {
@@ -561,6 +585,72 @@ const submitForm = async (req, res) => {
       ip_address: req.ip,
       user_agent: req.get("User-Agent"),
     });
+
+    const formatValue = (value) => {
+      if (Array.isArray(value)) {
+        return value.join(", ");
+      }
+      if (typeof value === "object" && value !== null) {
+        return JSON.stringify(value, null, 2);
+      }
+      return value ?? "";
+    };
+
+    const fieldsHtml = Object.entries(submissionData || {})
+      .map(
+        ([key, value]) =>
+          `<li><strong>${key.replace(/_/g, " ")}:</strong> ${formatValue(
+            value,
+          )}</li>`,
+      )
+      .join("");
+
+    const htmlBody = `
+      <div>
+        <p>A new form submission was received for <strong>${form.title}</strong>.</p>
+        <ul>
+          ${fieldsHtml}
+        </ul>
+        <p>Submission ID: ${submission.id}</p>
+        <p>Submitted at: ${new Date(submission.created_at).toLocaleString()}</p>
+      </div>
+    `;
+
+    const emailHost = process.env.EMAIL_HOST || "smtp.workplace.truehost.cloud";
+    const emailPort = parseInt(process.env.EMAIL_PORT, 10) || 587;
+    const emailSecure = process.env.EMAIL_SECURE === "true";
+    const emailUser = process.env.EMAIL_USER || config.emailService.user;
+    const emailPass = process.env.EMAIL_PASS || config.emailService.pass;
+    const emailFrom =
+      process.env.EMAIL_FROM || '"Akira Safaris" <info@akirasafaris.com>';
+    const emailTo = process.env.EMAIL_TO || "bookings@akirasafaris.com";
+
+    if (emailUser && emailPass) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: emailHost,
+          port: emailPort,
+          secure: emailSecure,
+          auth: {
+            user: emailUser,
+            pass: emailPass,
+          },
+        });
+
+        await transporter.sendMail({
+          from: emailFrom,
+          to: emailTo,
+          subject: `New form submission: ${form.title}`,
+          html: htmlBody,
+        });
+      } catch (emailError) {
+        console.error("Error sending submission email:", emailError);
+      }
+    } else {
+      console.warn(
+        "Email credentials are not configured. Skipping submission notification.",
+      );
+    }
 
     res.status(201).json({
       success: true,

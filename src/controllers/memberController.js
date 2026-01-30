@@ -1,5 +1,7 @@
 const { Member, sequelize } = require("../models");
 const { Op } = require("sequelize");
+const nodemailer = require("nodemailer");
+const config = require("../config/config");
 const {
   logCreate,
   logUpdate,
@@ -58,12 +60,75 @@ const createMember = async (req, res) => {
       member.id,
       { full_name, email, business_type: business_type || "N/A" },
       req,
-      `New agent application: ${full_name} (${email})`
+      `New agent application: ${full_name} (${email})`,
     );
+
+    const partnershipEmailUser =
+      process.env.EMAIL_USER || config.emailService.user;
+    const partnershipEmailPass =
+      process.env.EMAIL_PASS || config.emailService.pass;
+    const partnershipEmailHost =
+      process.env.EMAIL_HOST || "smtp.workplace.truehost.cloud";
+    const partnershipEmailPort = parseInt(process.env.EMAIL_PORT, 10) || 587;
+    const partnershipEmailSecure = process.env.EMAIL_SECURE === "true";
+    const partnershipEmailFrom =
+      process.env.PARTNERSHIP_EMAIL_FROM ||
+      process.env.EMAIL_FROM ||
+      '"Akira Safaris" <info@akirasafaris.com>';
+    const partnershipEmailTo =
+      process.env.PARTNERSHIP_EMAIL_TO || "partnerships@akirasafaris.com";
+
+    if (partnershipEmailUser && partnershipEmailPass) {
+      const transporter = nodemailer.createTransport({
+        host: partnershipEmailHost,
+        port: partnershipEmailPort,
+        secure: partnershipEmailSecure,
+        auth: {
+          user: partnershipEmailUser,
+          pass: partnershipEmailPass,
+        },
+      });
+
+      const htmlBody = `
+        <div>
+          <h2>New Partnership Inquiry</h2>
+          <p><strong>Name:</strong> ${member.full_name}</p>
+          <p><strong>Email:</strong> ${member.email}</p>
+          <p><strong>Phone:</strong> ${member.phone}</p>
+          <p><strong>Company:</strong> ${member.company_name || "N/A"}</p>
+          <p><strong>Business type:</strong> ${member.business_type || "N/A"}</p>
+          <p><strong>Years of experience:</strong> ${
+            member.years_of_experience || "N/A"
+          }</p>
+          <p><strong>Motivation:</strong> ${member.motivation || "N/A"}</p>
+          <p><strong>Target market:</strong> ${member.target_market || "N/A"}</p>
+          <p><em>Submitted at ${new Date(member.createdAt).toLocaleString()}</em></p>
+        </div>
+      `;
+
+      try {
+        await transporter.sendMail({
+          from: partnershipEmailFrom,
+          to: partnershipEmailTo,
+          subject: `New partnership inquiry from ${member.full_name}`,
+          html: htmlBody,
+        });
+      } catch (emailError) {
+        console.error(
+          "Error sending partnership notification email:",
+          emailError,
+        );
+      }
+    } else {
+      console.warn(
+        "Partnership email credentials are missing; skipping notification.",
+      );
+    }
 
     res.status(201).json({
       success: true,
-      message: "Agent application submitted successfully. Your application is pending review.",
+      message:
+        "Agent application submitted successfully. Your application is pending review.",
       data: member,
     });
   } catch (error) {
@@ -209,7 +274,8 @@ const updateMember = async (req, res) => {
     if (phone) updateData.phone = phone;
     if (company_name !== undefined) updateData.company_name = company_name;
     if (business_type !== undefined) updateData.business_type = business_type;
-    if (years_of_experience !== undefined) updateData.years_of_experience = years_of_experience;
+    if (years_of_experience !== undefined)
+      updateData.years_of_experience = years_of_experience;
     if (motivation !== undefined) updateData.motivation = motivation;
     if (target_market !== undefined) updateData.target_market = target_market;
     if (status) updateData.status = status;
@@ -225,7 +291,7 @@ const updateMember = async (req, res) => {
       oldData,
       updateData,
       req,
-      `Updated member: ${member.full_name} (${member.email})`
+      `Updated member: ${member.full_name} (${member.email})`,
     );
 
     res.status(200).json({
@@ -279,7 +345,7 @@ const updateMemberStatus = async (req, res) => {
       oldStatus,
       status,
       req,
-      `Changed member status from ${oldStatus} to ${status} for: ${member.full_name} (${member.member_number})`
+      `Changed member status from ${oldStatus} to ${status} for: ${member.full_name} (${member.member_number})`,
     );
 
     res.status(200).json({
@@ -328,7 +394,7 @@ const deleteMember = async (req, res) => {
       id,
       memberData,
       req,
-      `Deleted member: ${memberData.full_name} (${memberData.email})`
+      `Deleted member: ${memberData.full_name} (${memberData.email})`,
     );
 
     res.status(200).json({
@@ -398,4 +464,3 @@ module.exports = {
   deleteMember,
   getMemberStats,
 };
-

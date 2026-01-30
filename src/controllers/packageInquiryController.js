@@ -1,10 +1,13 @@
-const { PackageInquiry, Destination, AdminUser, sequelize } = require("../models");
-const { Op } = require("sequelize");
 const {
-  logCreate,
-  logUpdate,
-  logDelete,
-} = require("../utils/auditLogger");
+  PackageInquiry,
+  Destination,
+  AdminUser,
+  sequelize,
+} = require("../models");
+const { Op } = require("sequelize");
+const nodemailer = require("nodemailer");
+const config = require("../config/config");
+const { logCreate, logUpdate, logDelete } = require("../utils/auditLogger");
 
 // Create package inquiry (public)
 const createPackageInquiry = async (req, res) => {
@@ -53,7 +56,9 @@ const createPackageInquiry = async (req, res) => {
       email: email.trim().toLowerCase(),
       phone: phone?.trim() || null,
       travel_date: travelDate || null,
-      number_of_travelers: numberOfTravelers ? parseInt(numberOfTravelers) : null,
+      number_of_travelers: numberOfTravelers
+        ? parseInt(numberOfTravelers)
+        : null,
       budget: budget?.trim() || null,
       message: message?.trim() || null,
       package_data: packageData,
@@ -73,8 +78,64 @@ const createPackageInquiry = async (req, res) => {
       inquiry.id,
       { name, email, package_title: packageData.title },
       req,
-      `New package inquiry from ${name} for ${packageData.title}`
+      `New package inquiry from ${name} for ${packageData.title}`,
     );
+
+    const inquiryEmailUser = process.env.EMAIL_USER || config.emailService.user;
+    const inquiryEmailPass = process.env.EMAIL_PASS || config.emailService.pass;
+    const inquiryEmailHost =
+      process.env.EMAIL_HOST || "smtp.workplace.truehost.cloud";
+    const inquiryEmailPort = parseInt(process.env.EMAIL_PORT, 10) || 587;
+    const inquiryEmailSecure = process.env.EMAIL_SECURE === "true";
+    const inquiryEmailFrom =
+      process.env.INQUIRY_EMAIL_FROM ||
+      process.env.EMAIL_FROM ||
+      '"Akira Safaris" <info@akirasafaris.com>';
+    const inquiryEmailTo =
+      process.env.INQUIRY_EMAIL_TO || "inquiry@akirasafaris.com";
+
+    if (inquiryEmailUser && inquiryEmailPass) {
+      const transporter = nodemailer.createTransport({
+        host: inquiryEmailHost,
+        port: inquiryEmailPort,
+        secure: inquiryEmailSecure,
+        auth: {
+          user: inquiryEmailUser,
+          pass: inquiryEmailPass,
+        },
+      });
+
+      const htmlBody = `
+        <div>
+          <h2>New Package Inquiry</h2>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Phone:</strong> ${phone || "N/A"}</p>
+          <p><strong>Package:</strong> ${packageData.title}</p>
+          <p><strong>Destination:</strong> ${
+            destinationData?.title || "N/A"
+          }</p>
+          <p><strong>Travel Date:</strong> ${travelDate || "N/A"}</p>
+          <p><strong>Travelers:</strong> ${numberOfTravelers || "N/A"}</p>
+          <p><strong>Budget:</strong> ${budget || "N/A"}</p>
+          <p><strong>Message:</strong> ${message || "N/A"}</p>
+          <p><em>Submitted at ${new Date(inquiry.created_at).toLocaleString()}</em></p>
+        </div>
+      `;
+
+      try {
+        await transporter.sendMail({
+          from: inquiryEmailFrom,
+          to: inquiryEmailTo,
+          subject: `Inquiry: ${packageData.title}`,
+          html: htmlBody,
+        });
+      } catch (emailError) {
+        console.error("Error sending package inquiry email:", emailError);
+      }
+    } else {
+      console.warn("Package inquiry email credentials not configured.");
+    }
 
     res.status(201).json({
       success: true,
@@ -252,7 +313,7 @@ const updateInquiry = async (req, res) => {
       inquiry.id,
       updateData,
       req,
-      `Updated inquiry from ${inquiry.name}`
+      `Updated inquiry from ${inquiry.name}`,
     );
 
     await transaction.commit();
@@ -313,9 +374,13 @@ const deleteInquiry = async (req, res) => {
       adminUserId,
       "package_inquiry",
       inquiry.id,
-      { name: inquiry.name, email: inquiry.email, package_title: inquiry.package_title },
+      {
+        name: inquiry.name,
+        email: inquiry.email,
+        package_title: inquiry.package_title,
+      },
       req,
-      `Deleted inquiry from ${inquiry.name}`
+      `Deleted inquiry from ${inquiry.name}`,
     );
 
     await inquiry.destroy({ transaction });
@@ -340,8 +405,12 @@ const deleteInquiry = async (req, res) => {
 const getInquiryStats = async (req, res) => {
   try {
     const total = await PackageInquiry.count();
-    const pending = await PackageInquiry.count({ where: { status: "pending" } });
-    const replied = await PackageInquiry.count({ where: { status: "replied" } });
+    const pending = await PackageInquiry.count({
+      where: { status: "pending" },
+    });
+    const replied = await PackageInquiry.count({
+      where: { status: "replied" },
+    });
     const closed = await PackageInquiry.count({ where: { status: "closed" } });
 
     // Get recent inquiries (last 7 days)
@@ -383,4 +452,3 @@ module.exports = {
   deleteInquiry,
   getInquiryStats,
 };
-
