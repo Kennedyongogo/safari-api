@@ -9,6 +9,7 @@ const {
   deleteDocument,
   downloadDocument,
   downloadDocumentBySlug,
+  viewDocumentBySlug,
   getDocumentStats,
 } = require("../controllers/documentController");
 const { authenticateAdmin } = require("../middleware/auth");
@@ -17,6 +18,13 @@ const {
   handleUploadError,
 } = require("../middleware/upload");
 const { errorHandler } = require("../middleware/errorHandler");
+
+/**
+ * @route   GET /api/documents/public/slug/:slug/view
+ * @desc    View document by slug (inline)
+ * @access  Public
+ */
+router.get("/public/slug/:slug/view", viewDocumentBySlug);
 
 // All routes require admin authentication
 router.use(authenticateAdmin);

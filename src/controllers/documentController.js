@@ -447,6 +447,46 @@ const downloadDocumentBySlug = async (req, res) => {
   }
 };
 
+// View document by slug (public)
+const viewDocumentBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const document = await Document.findOne({ where: { slug } });
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: "Document not found",
+      });
+    }
+
+    const absolutePath = path.join(__dirname, "..", "..", document.file_path);
+
+    try {
+      await fs.access(absolutePath);
+    } catch (error) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found on server",
+      });
+    }
+
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${path.basename(absolutePath)}"`
+    );
+    return res.sendFile(absolutePath);
+  } catch (error) {
+    console.error("Error viewing document by slug:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error viewing document",
+      error: error.message,
+    });
+  }
+};
+
 // Get document statistics
 const getDocumentStats = async (req, res) => {
   try {
@@ -486,6 +526,7 @@ module.exports = {
   deleteDocument,
   downloadDocument,
   downloadDocumentBySlug,
+  viewDocumentBySlug,
   getDocumentStats,
 };
 
