@@ -13,6 +13,11 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      slug: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
+      },
       description: {
         type: DataTypes.TEXT,
         allowNull: true,
@@ -45,6 +50,7 @@ module.exports = (sequelize) => {
     {
       tableName: "documents",
       timestamps: true,
+      indexes: [{ unique: true, fields: ["slug"] }],
     }
   );
 

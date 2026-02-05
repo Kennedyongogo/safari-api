@@ -4,9 +4,11 @@ const {
   createDocument,
   getAllDocuments,
   getDocumentById,
+  getDocumentBySlug,
   updateDocument,
   deleteDocument,
   downloadDocument,
+  downloadDocumentBySlug,
   getDocumentStats,
 } = require("../controllers/documentController");
 const { authenticateAdmin } = require("../middleware/auth");
@@ -46,6 +48,13 @@ router.get("/", getAllDocuments);
 router.get("/stats", getDocumentStats);
 
 /**
+ * @route   GET /api/documents/slug/:slug
+ * @desc    Get single document by slug
+ * @access  Admin
+ */
+router.get("/slug/:slug", getDocumentBySlug);
+
+/**
  * @route   GET /api/documents/:id
  * @desc    Get single document by ID
  * @access  Admin
@@ -58,6 +67,13 @@ router.get("/:id", getDocumentById);
  * @access  Admin
  */
 router.get("/:id/download", downloadDocument);
+
+/**
+ * @route   GET /api/documents/slug/:slug/download
+ * @desc    Download document file by slug
+ * @access  Admin
+ */
+router.get("/slug/:slug/download", downloadDocumentBySlug);
 
 /**
  * @route   PUT /api/documents/:id

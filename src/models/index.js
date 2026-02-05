@@ -51,7 +51,7 @@ const initializeModels = async () => {
 
     // Use alter: false to prevent schema conflicts in production
     console.log("📋 Syncing tables...");
-    await AdminUser.sync({ force: false, alter: false });
+    await AdminUser.sync({ force: false, alter: true });
     await Document.sync({ force: false, alter: false });
     await AuditTrail.sync({ force: false, alter: false }); // Allow schema changes for enum updates
     await Review.sync({ force: false, alter: false });

@@ -10,10 +10,33 @@ const {
   logDownload,
 } = require("../utils/auditLogger");
 
+const slugify = (value) =>
+  (value || "")
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const getUniqueSlug = async (baseSlug, excludeId) => {
+  let slug = baseSlug || "document";
+  let suffix = 1;
+
+  while (true) {
+    const where = excludeId
+      ? { slug, id: { [Op.ne]: excludeId } }
+      : { slug };
+    const existing = await Document.findOne({ where });
+    if (!existing) return slug;
+    suffix += 1;
+    slug = `${baseSlug}-${suffix}`;
+  }
+};
+
 // Create/Upload document
 const createDocument = async (req, res) => {
   try {
-    const { title, description, file_type } = req.body;
+    const { title, description, file_type, slug } = req.body;
 
     // Validate required fields
     if (!title || !file_type) {
@@ -35,8 +58,12 @@ const createDocument = async (req, res) => {
     const file_path = convertToRelativePath(req.file.path);
 
     // Create document record
+    const baseSlug = slugify(slug || title);
+    const uniqueSlug = await getUniqueSlug(baseSlug);
+
     const document = await Document.create({
       title,
+      slug: uniqueSlug,
       description,
       file_path,
       file_type,
@@ -48,7 +75,7 @@ const createDocument = async (req, res) => {
       uploaded_by,
       "document",
       document.id,
-      { title, file_type, file_path },
+      { title, slug: uniqueSlug, file_type, file_path },
       req,
       `Uploaded new document: ${title}`
     );
@@ -166,11 +193,48 @@ const getDocumentById = async (req, res) => {
   }
 };
 
+// Get single document by slug
+const getDocumentBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const document = await Document.findOne({
+      where: { slug },
+      include: [
+        {
+          model: AdminUser,
+          as: "uploader",
+          attributes: ["id", "full_name", "email", "phone"],
+        },
+      ],
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: "Document not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: document,
+    });
+  } catch (error) {
+    console.error("Error fetching document by slug:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching document",
+      error: error.message,
+    });
+  }
+};
+
 // Update document details
 const updateDocument = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, file_type } = req.body;
+    const { title, description, file_type, slug } = req.body;
 
     const document = await Document.findByPk(id);
 
@@ -193,6 +257,11 @@ const updateDocument = async (req, res) => {
       description: description !== undefined ? description : document.description,
       file_type: file_type || document.file_type,
     };
+
+    const baseSlug = slugify(slug || newValues.title);
+    if (baseSlug) {
+      newValues.slug = await getUniqueSlug(baseSlug, id);
+    }
 
     // Update document
     await document.update(newValues);
@@ -329,6 +398,55 @@ const downloadDocument = async (req, res) => {
   }
 };
 
+// Download document by slug
+const downloadDocumentBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const document = await Document.findOne({ where: { slug } });
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: "Document not found",
+      });
+    }
+
+    // Convert relative path to absolute path
+    const absolutePath = path.join(__dirname, "..", "..", document.file_path);
+
+    // Check if file exists
+    try {
+      await fs.access(absolutePath);
+    } catch (error) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found on server",
+      });
+    }
+
+    // Log audit trail
+    await logDownload(
+      req.user?.id,
+      "document",
+      document.id,
+      { filename: document.title, file_type: document.file_type },
+      req,
+      `Downloaded document: ${document.title}`
+    );
+
+    // Send file
+    res.download(absolutePath, path.basename(absolutePath));
+  } catch (error) {
+    console.error("Error downloading document by slug:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error downloading document",
+      error: error.message,
+    });
+  }
+};
+
 // Get document statistics
 const getDocumentStats = async (req, res) => {
   try {
@@ -363,9 +481,11 @@ module.exports = {
   createDocument,
   getAllDocuments,
   getDocumentById,
+  getDocumentBySlug,
   updateDocument,
   deleteDocument,
   downloadDocument,
+  downloadDocumentBySlug,
   getDocumentStats,
 };
 
