@@ -451,10 +451,16 @@ const downloadDocumentBySlug = async (req, res) => {
 const viewDocumentBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
+    console.log("📄 viewDocumentBySlug hit:", {
+      slug,
+      path: req.path,
+      method: req.method,
+    });
 
     const document = await Document.findOne({ where: { slug } });
 
     if (!document) {
+      console.log("📄 viewDocumentBySlug not found:", { slug });
       return res.status(404).json({
         success: false,
         message: "Document not found",
@@ -462,10 +468,20 @@ const viewDocumentBySlug = async (req, res) => {
     }
 
     const absolutePath = path.join(__dirname, "..", "..", document.file_path);
+    console.log("📄 viewDocumentBySlug file:", {
+      slug,
+      file_path: document.file_path,
+      absolutePath,
+    });
 
     try {
       await fs.access(absolutePath);
     } catch (error) {
+      console.log("📄 viewDocumentBySlug file missing:", {
+        slug,
+        absolutePath,
+        error: error.message,
+      });
       return res.status(404).json({
         success: false,
         message: "File not found on server",
