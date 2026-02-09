@@ -10,6 +10,7 @@ const {
   downloadDocument,
   downloadDocumentBySlug,
   viewDocumentBySlug,
+  encryptDocumentBySlug,
   getDocumentStats,
 } = require("../controllers/documentController");
 const { authenticateAdmin } = require("../middleware/auth");
@@ -61,6 +62,13 @@ router.get("/stats", getDocumentStats);
  * @access  Admin
  */
 router.get("/slug/:slug", getDocumentBySlug);
+
+/**
+ * @route   PUT /api/documents/slug/:slug/encrypt
+ * @desc    Encrypt existing document by slug (e.g. tra-license)
+ * @access  Admin
+ */
+router.put("/slug/:slug/encrypt", encryptDocumentBySlug);
 
 /**
  * @route   GET /api/documents/:id

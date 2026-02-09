@@ -4,11 +4,21 @@ const path = require("path");
 const fs = require("fs").promises;
 const { convertToRelativePath } = require("../utils/filePath");
 const {
+  shouldEncryptBySlug,
+  encryptPdfFile,
+} = require("../utils/pdfEncrypt");
+const {
   logCreate,
   logUpdate,
   logDelete,
   logDownload,
 } = require("../utils/auditLogger");
+
+/** Resolve document's file_path to absolute path (same as view/serve). */
+function getDocumentAbsolutePath(document) {
+  const relative = (document.file_path || "").replace(/\\/g, "/");
+  return path.join(__dirname, "..", "..", relative);
+}
 
 const slugify = (value) =>
   (value || "")
@@ -79,6 +89,20 @@ const createDocument = async (req, res) => {
       req,
       `Uploaded new document: ${title}`
     );
+
+    // Encrypt PDF for protected slugs (e.g. tra-license) so open requires password
+    if (
+      shouldEncryptBySlug(uniqueSlug) &&
+      (file_type || "").toUpperCase() === "PDF" &&
+      process.env.TRA_DOCUMENT_PASSWORD
+    ) {
+      try {
+        const absolutePath = path.join(__dirname, "..", "..", file_path);
+        await encryptPdfFile(absolutePath, process.env.TRA_DOCUMENT_PASSWORD);
+      } catch (encErr) {
+        console.error("Document encryption failed (document still saved):", encErr);
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -447,6 +471,60 @@ const downloadDocumentBySlug = async (req, res) => {
   }
 };
 
+// Encrypt existing document by slug (admin) – e.g. for tra-license already uploaded
+const encryptDocumentBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    if (!process.env.TRA_DOCUMENT_PASSWORD) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "TRA_DOCUMENT_PASSWORD is not set. Add it to .env and restart the server.",
+      });
+    }
+
+    const document = await Document.findOne({ where: { slug } });
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: "Document not found",
+      });
+    }
+
+    const absolutePath = getDocumentAbsolutePath(document);
+
+    try {
+      await fs.access(absolutePath);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        message: "File not found on server",
+      });
+    }
+
+    if ((document.file_type || "").toUpperCase() !== "PDF") {
+      return res.status(400).json({
+        success: false,
+        message: "Only PDF documents can be encrypted",
+      });
+    }
+
+    await encryptPdfFile(absolutePath, process.env.TRA_DOCUMENT_PASSWORD);
+
+    res.status(200).json({
+      success: true,
+      message: "Document encrypted successfully. Opening it will now require the password.",
+    });
+  } catch (error) {
+    console.error("Error encrypting document by slug:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error encrypting document",
+    });
+  }
+};
+
 // View document by slug (public)
 const viewDocumentBySlug = async (req, res) => {
   try {
@@ -467,7 +545,7 @@ const viewDocumentBySlug = async (req, res) => {
       });
     }
 
-    const absolutePath = path.join(__dirname, "..", "..", document.file_path);
+    const absolutePath = getDocumentAbsolutePath(document);
     console.log("📄 viewDocumentBySlug file:", {
       slug,
       file_path: document.file_path,
@@ -543,6 +621,7 @@ module.exports = {
   downloadDocument,
   downloadDocumentBySlug,
   viewDocumentBySlug,
+  encryptDocumentBySlug,
   getDocumentStats,
 };
 
