@@ -39,12 +39,19 @@ async function encryptPdfFile(absolutePath, userPassword) {
   const bytes = await fs.readFile(absolutePath);
   const pdfDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
 
-  // pdf-lib-with-encrypt: save with user password (required to open the PDF)
-  const encryptedBytes = await pdfDoc.save({
+  // pdf-lib-with-encrypt: call .encrypt() then .save() (encryption is not in save options)
+  pdfDoc.encrypt({
     userPassword,
+    ownerPassword: userPassword,
   });
 
-  await fs.writeFile(absolutePath, encryptedBytes);
+  const encryptedBytes = await pdfDoc.save();
+
+  // Ensure Buffer for Node fs; save() may return Uint8Array
+  const buf = Buffer.isBuffer(encryptedBytes)
+    ? encryptedBytes
+    : Buffer.from(encryptedBytes);
+  await fs.writeFile(absolutePath, buf);
 }
 
 module.exports = {

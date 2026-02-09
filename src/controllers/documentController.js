@@ -475,6 +475,7 @@ const downloadDocumentBySlug = async (req, res) => {
 const encryptDocumentBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
+    console.log("🔐 encryptDocumentBySlug called:", { slug });
 
     if (!process.env.TRA_DOCUMENT_PASSWORD) {
       return res.status(400).json({
@@ -493,6 +494,7 @@ const encryptDocumentBySlug = async (req, res) => {
     }
 
     const absolutePath = getDocumentAbsolutePath(document);
+    console.log("🔐 encrypt path:", absolutePath);
 
     try {
       await fs.access(absolutePath);
@@ -511,6 +513,7 @@ const encryptDocumentBySlug = async (req, res) => {
     }
 
     await encryptPdfFile(absolutePath, process.env.TRA_DOCUMENT_PASSWORD);
+    console.log("🔐 Document encrypted successfully:", slug);
 
     res.status(200).json({
       success: true,
